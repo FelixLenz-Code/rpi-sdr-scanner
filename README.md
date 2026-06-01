@@ -1,7 +1,5 @@
 # RPi SDR Scanner
 
-![Web UI](docs/screenshots/webui_bank1.png)
-
 Kompakter Tischscanner im **1-DIN Autoradio-Format** auf Basis eines Raspberry Pi, eines RTL-SDR-Dongles und einem 3,5"-SPI-Touchscreen. Vorkonfigurierte Kanäle scannen, Memory-Bänke verwalten, manuell abstimmen — steuerbar über physische Tasten, einen Drehgeber oder ein Web-Interface per WLAN-Hotspot.
 
 ---
@@ -27,6 +25,13 @@ Kompakter Tischscanner im **1-DIN Autoradio-Format** auf Basis eines Raspberry P
 - **Web-UI** — Vollzugriff per Flask + SSE auf `http://scanner.local:5000`
 - **WLAN-Hotspot** — Pi als eigener Accesspoint (SSID: `SDR-Scanner`)
 - **HDMI-Modus** — skalierbares Vorschaufenster zur Entwicklung ohne SPI-Display
+
+---
+
+## Screenshots
+
+![Web-UI – Bank 1: FM Repeater](docs/screenshots/webui_bank1.png)
+*Web-Oberfläche mit Memory-Bank 1 „FM Repeater" (erreichbar über WLAN-Hotspot)*
 
 ---
 
