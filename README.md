@@ -30,7 +30,7 @@ Kompakter Tischscanner im **1-DIN Autoradio-Format** auf Basis eines Raspberry P
 
 ## Screenshots
 
-![Web-UI – Bank 1: FM Repeater](docs/screenshots/webui_bank1.png)
+![Web-UI – Bank 1: FM Repeater](docs/screenshots/webui_bank1_fm_repeater.png)
 *Web-Oberfläche mit Memory-Bank 1 „FM Repeater" (erreichbar über WLAN-Hotspot)*
 
 ---
