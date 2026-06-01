@@ -64,6 +64,43 @@ sdr_scanner/
 
 ---
 
+## Verdrahtung
+
+Alle Buttons und der Encoder liegen im **unteren Header-Block (Pins 29–40)** — konfliktfrei mit dem Waveshare SPI-Display, das Pins 11–26 belegt.
+
+### Buttons (Pull-Up, gegen GND schalten)
+
+| Funktion | BCM | Phys. Pin | GND-Pin |
+|----------|-----|-----------|---------|
+| Monitor  | 16  | 36        | 39      |
+| Mode     | 19  | 35        | 39      |
+| Memory   | 20  | 38        | 39      |
+| Squelch+ | 21  | 40        | 39      |
+| Squelch− | 26  | 37        | 39      |
+
+### Rotary Encoder
+
+| Signal   | BCM | Phys. Pin | Hinweis |
+|----------|-----|-----------|---------|
+| VCC      | 12  | 32        | GPIO als 3,3V-Ausgang |
+| A        | 5   | 29        | – |
+| B        | 6   | 31        | – |
+| SW (Taster) | 13 | 33     | – |
+| GND      | –   | 30 / 34   | beide GND-Pins nutzbar |
+
+### Display (Waveshare 3,5" SPI)
+
+Standardverdrahtung laut [Waveshare Wiki](https://www.waveshare.com/wiki/3.5inch_RPi_LCD_(A)) — direkter Aufsteck-Header, keine separate Verkabelung nötig. Das Display belegt GPIO 7–11, 17, 18, 25, 27.
+
+### RTL-SDR Dongle
+
+Einfach per USB an den Pi anstecken. Bei Problemen mit dem Standard-DVB-Treiber:
+```bash
+echo 'blacklist dvb_usb_rtl28xxu' | sudo tee /etc/modprobe.d/blacklist-rtl.conf
+```
+
+---
+
 ## Installation
 
 ### Voraussetzungen
