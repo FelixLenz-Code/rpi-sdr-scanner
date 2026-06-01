@@ -1,5 +1,7 @@
 # RPi SDR Scanner
 
+![Web UI](docs/screenshots/webui_bank1.png)
+
 Kompakter Tischscanner im **1-DIN Autoradio-Format** auf Basis eines Raspberry Pi, eines RTL-SDR-Dongles und einem 3,5"-SPI-Touchscreen. Vorkonfigurierte Kanäle scannen, Memory-Bänke verwalten, manuell abstimmen — steuerbar über physische Tasten, einen Drehgeber oder ein Web-Interface per WLAN-Hotspot.
 
 ---
@@ -90,8 +92,8 @@ bash setup.sh --ssid NAME --pass PASS  # Hotspot nicht-interaktiv konfigurieren
 ```bash
 python3 main.py                    # Normal (SPI-Display, kein Web-UI)
 python3 main.py --web              # Mit Web-UI auf http://192.168.4.1:5000
-python3 main.py --hdmi             # HDMI-Fenster statt SPI (960×640)
-python3 main.py --hdmi-size 1920x1080
+python3 main.py --hdmi             # HDMI-Fenster statt SPI (960×640) – noch ungetestet
+python3 main.py --hdmi-size 1920x1080  # – noch ungetestet
 python3 main.py --debug            # Kein GPIO, kein rtl_fm, kein Framebuffer
 python3 main.py --no-display       # Nur Scanner-Kern + Web-UI
 ```
