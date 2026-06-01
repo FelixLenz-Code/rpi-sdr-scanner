@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Datenbank
+bookmarks.db
+*.db-journal
+
+# Deploy-Artefakte
+sdr_scanner.zip
+*.zip
+
+# Logs
+*.log
+
+# Kalibrierungs-Backup
+config/settings.py.bak
+
+# Editor
+.vscode/
+.idea/
+*.swp

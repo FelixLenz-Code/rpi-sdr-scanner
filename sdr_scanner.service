@@ -1,0 +1,22 @@
+[Unit]
+Description=RPi SDR Tischscanner
+After=network.target sound.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/sdr_scanner
+ExecStart=/usr/bin/python3 /home/pi/sdr_scanner/main.py --web
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+KillMode=control-group
+
+# SPI-Display (Waveshare 3.5", /dev/fb1)
+Environment=SDL_VIDEODRIVER=fbcon
+Environment=SDL_FBDEV=/dev/fb1
+Environment=SDL_NOMOUSE=1
+
+[Install]
+WantedBy=multi-user.target
