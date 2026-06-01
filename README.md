@@ -18,7 +18,7 @@ Kompakter Tischscanner im **1-DIN Autoradio-Format** auf Basis eines Raspberry P
 
 - **Kanalscanner** — scannt eine konfigurierbare Kanalliste, bleibt bei aktivem Signal stehen
 - **Memory-Bänke** — 10 benannte Bänke, persistent in SQLite
-- **Demodulationsmodi** — NFM, FM, WFM, AM (via `rtl_fm`)
+- **Demodulationsmodi** — NFM, FM, WFM, AM (direkte IQ-Demodulation via `pyrtlsdr` + numpy/scipy)
 - **Squelch-Regelung** — einstellbare Schwelle mit Hysterese und Signal-Balkenanzeige
 - **Monitor-Taste** — Squelch solange gedrückt halten zwangsweise öffnen (Mithören ohne Signal)
 - **PPM-Kalibrierung** — integrierte Kalibrierung via `kalibrate-rtl`, Ergebnis wird automatisch gespeichert
@@ -82,16 +82,6 @@ bash setup.sh --no-hotspot     # Ohne Hotspot-Einrichtung
 bash setup.sh --no-service     # Ohne systemd-Service
 bash setup.sh --ssid NAME --pass PASS  # Hotspot nicht-interaktiv konfigurieren
 ```
-
-### SD-Karten-Autoinstall (firstrun.sh)
-
-`firstrun.sh` und `sdr_scanner.zip` auf die Boot-Partition kopieren, dann in `cmdline.txt` anhängen:
-
-```
-systemd.run=/boot/firmware/firstrun.sh systemd.run_success_action=reboot
-```
-
-Der Pi installiert alles automatisch beim ersten Hochfahren.
 
 ---
 
