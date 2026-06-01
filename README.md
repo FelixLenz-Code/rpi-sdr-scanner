@@ -1,226 +1,207 @@
 # RPi SDR Scanner
 
-A compact desktop scanner in **1-DIN car radio format** (180 × 50 × 170 mm) built around a Raspberry Pi, an RTL-SDR dongle, and a 3.5" SPI touchscreen. Scan preconfigured channels, manage memory banks, tune manually, and control everything via physical buttons, a rotary encoder, or a web interface over Wi-Fi hotspot.
+Kompakter Tischscanner im **1-DIN Autoradio-Format** auf Basis eines Raspberry Pi, eines RTL-SDR-Dongles und einem 3,5"-SPI-Touchscreen. Vorkonfigurierte Kanäle scannen, Memory-Bänke verwalten, manuell abstimmen — steuerbar über physische Tasten, einen Drehgeber oder ein Web-Interface per WLAN-Hotspot.
 
 ---
 
 ## Hardware
 
-| Component | Details |
+| Komponente | Details |
 |-----------|---------|
-| SBC | Raspberry Pi 3B+ or Zero 2 W |
-| SDR Dongle | NooElec NESDR SMArt v5 (RTL-SDR) |
-| Display | Waveshare 3.5" IPS SPI (480×320) |
-| Case | 3D-printed PETG, 2-part (base + lid) |
+| SBC | Raspberry Pi 3B+ oder Zero 2 W |
+| SDR-Dongle | NooElec NESDR SMArt v5 (RTL-SDR) |
+| Display | Waveshare 3,5" IPS SPI (480×320) |
 
 ---
 
 ## Features
 
-- **Channel scanner** — scans a configurable channel list, stops on active signals
-- **Memory banks** — 10 named banks, persistent in SQLite
-- **Demodulation modes** — NFM, FM, WFM, AM (via `rtl_fm`)
-- **Squelch control** — adjustable threshold with hysteresis, signal bar display
-- **Monitor button** — force-opens squelch while held (listen without signal)
-- **PPM calibration** — built-in calibration via `kalibrate-rtl`, auto-saves result
-- **Web UI** — full control via Flask + SSE at `http://scanner.local:5000`
-- **Wi-Fi hotspot** — Pi acts as its own access point (SSID: `SDR-Scanner`)
-- **HDMI mode** — scaled preview window for development without SPI display
+- **Kanalscanner** — scannt eine konfigurierbare Kanalliste, bleibt bei aktivem Signal stehen
+- **Memory-Bänke** — 10 benannte Bänke, persistent in SQLite
+- **Demodulationsmodi** — NFM, FM, WFM, AM (via `rtl_fm`)
+- **Squelch-Regelung** — einstellbare Schwelle mit Hysterese und Signal-Balkenanzeige
+- **Monitor-Taste** — Squelch solange gedrückt halten zwangsweise öffnen (Mithören ohne Signal)
+- **PPM-Kalibrierung** — integrierte Kalibrierung via `kalibrate-rtl`, Ergebnis wird automatisch gespeichert
+- **Web-UI** — Vollzugriff per Flask + SSE auf `http://scanner.local:5000`
+- **WLAN-Hotspot** — Pi als eigener Accesspoint (SSID: `SDR-Scanner`)
+- **HDMI-Modus** — skalierbares Vorschaufenster zur Entwicklung ohne SPI-Display
 
 ---
 
-## Project Structure
+## Projektstruktur
 
 ```
 sdr_scanner/
-├── main.py                  # Entry point, CLI arguments
+├── main.py                  # Einstiegspunkt, CLI-Argumente
 ├── config/
-│   └── settings.py          # All configuration values
+│   └── settings.py          # Alle Konfigurationswerte
 ├── core/
-│   ├── scanner.py           # Main controller, event loop, state machine
-│   ├── frequency.py         # Channel list, scan navigation
-│   ├── squelch.py           # RSSI evaluation, squelch logic
-│   ├── demodulator.py       # rtl_fm subprocess wrapper
-│   ├── audio.py             # PCM → PulseAudio/aplay pipeline
-│   ├── memory_banks.py      # 10 memory banks, SQLite persistence
-│   ├── bookmarks.py         # Reception log, DB connection
-│   ├── buttons.py           # GPIO handler + ButtonEvent enum
-│   └── calibration.py       # PPM calibration via kalibrate-rtl
+│   ├── scanner.py           # Haupt-Controller, Event-Loop, Zustandsmaschine
+│   ├── frequency.py         # Kanalliste, Scan-Navigation
+│   ├── squelch.py           # RSSI-Auswertung, Squelch-Logik
+│   ├── demodulator.py       # rtl_fm Subprocess-Wrapper
+│   ├── audio.py             # PCM → PulseAudio/aplay Pipeline
+│   ├── memory_banks.py      # 10 Memory-Bänke, SQLite-Persistenz
+│   ├── bookmarks.py         # Empfangs-Log, DB-Verbindung
+│   ├── buttons.py           # GPIO-Handler + ButtonEvent-Enum
+│   └── calibration.py       # PPM-Kalibrierung via kalibrate-rtl
 ├── ui/
-│   ├── display.py           # pygame framebuffer UI + overlays
-│   └── web.py               # Flask + SSE, REST endpoints
+│   ├── display.py           # pygame Framebuffer-UI + Overlays
+│   └── web.py               # Flask + SSE, REST-Endpunkte
 ├── hotspot/
-│   ├── hotspot_start.sh     # Called by systemd on boot
+│   ├── hotspot_start.sh     # Von systemd beim Boot aufgerufen
 │   ├── hotspot_stop.sh
-│   ├── change_wifi.sh       # CLI tool to change SSID/password
-│   └── fix_fstrim.sh        # Fixes fstrim boot hang on SD cards
-└── case/
-    ├── case_params.scad     # All dimensions — included by both parts
-    ├── scanner_base.scad    # Bottom shell + integrated front panel
-    ├── scanner_lid.scad     # Lid (printed upside down)
-    └── scanner_assembly.scad
+│   ├── change_wifi.sh       # SSID/Passwort per CLI ändern
+│   └── fix_fstrim.sh        # Behebt fstrim-Boot-Hänger auf SD-Karten
 ```
 
 ---
 
 ## Installation
 
-### Recommended: automated setup
+### Voraussetzungen
+
+- Raspberry Pi OS (Bookworm oder Bullseye) auf einer SD-Karte
+- SSH-Zugang oder direkter Terminalzugriff auf dem Pi
+
+### Repo klonen und Setup ausführen
 
 ```bash
-# Transfer the project to your Pi
-scp -r sdr_scanner/ pi@<pi-ip>:/home/pi/
-ssh pi@<pi-ip>
-
-# Run the setup script
-cd /home/pi/sdr_scanner
+git clone https://github.com/FelixLenz-Code/rpi-sdr-scanner.git
+cd rpi-sdr-scanner
 bash setup.sh
 ```
 
-`setup.sh` installs all dependencies, configures the Wi-Fi hotspot, installs the systemd service, and masks `fstrim` (which hangs on SD cards).
+`setup.sh` installiert alle Abhängigkeiten, richtet den WLAN-Hotspot ein, installiert den systemd-Service und behebt den `fstrim`-Boot-Hänger (häufiges Problem mit SD-Karten).
 
-**Options:**
+**Optionen:**
 
 ```bash
-bash setup.sh --no-display     # Skip Waveshare SPI driver
-bash setup.sh --no-hotspot     # Skip hotspot setup
-bash setup.sh --no-service     # Skip systemd service
-bash setup.sh --ssid NAME --pass PASS  # Non-interactive hotspot config
+bash setup.sh --no-display     # Ohne Waveshare SPI-Treiber
+bash setup.sh --no-hotspot     # Ohne Hotspot-Einrichtung
+bash setup.sh --no-service     # Ohne systemd-Service
+bash setup.sh --ssid NAME --pass PASS  # Hotspot nicht-interaktiv konfigurieren
 ```
 
-### SD card auto-install (firstrun.sh)
+### SD-Karten-Autoinstall (firstrun.sh)
 
-Copy `firstrun.sh` and `sdr_scanner.zip` to the boot partition, then append to `cmdline.txt`:
+`firstrun.sh` und `sdr_scanner.zip` auf die Boot-Partition kopieren, dann in `cmdline.txt` anhängen:
 
 ```
 systemd.run=/boot/firmware/firstrun.sh systemd.run_success_action=reboot
 ```
 
-The Pi installs everything automatically on first boot.
+Der Pi installiert alles automatisch beim ersten Hochfahren.
 
 ---
 
-## Running
+## Starten
 
 ```bash
-python3 main.py                    # Normal (SPI display, no web UI)
-python3 main.py --web              # With web UI at http://192.168.4.1:5000
-python3 main.py --hdmi             # HDMI window instead of SPI (960×640)
+python3 main.py                    # Normal (SPI-Display, kein Web-UI)
+python3 main.py --web              # Mit Web-UI auf http://192.168.4.1:5000
+python3 main.py --hdmi             # HDMI-Fenster statt SPI (960×640)
 python3 main.py --hdmi-size 1920x1080
-python3 main.py --debug            # No GPIO, no rtl_fm, no framebuffer
-python3 main.py --no-display       # Scanner core + web UI only
+python3 main.py --debug            # Kein GPIO, kein rtl_fm, kein Framebuffer
+python3 main.py --no-display       # Nur Scanner-Kern + Web-UI
 ```
 
-If no display is detected (`/dev/fb0`, `DISPLAY`, `WAYLAND_DISPLAY`), the display UI is disabled automatically and the scanner keeps running.
+Wenn kein Display erkannt wird (`/dev/fb0`, `DISPLAY`, `WAYLAND_DISPLAY`), deaktiviert sich die Display-UI automatisch — Scanner und Web-UI laufen trotzdem.
 
 ---
 
-## Button Layout
+## Tastenbelegung
 
-| Button | Short press | Long press (≥1 s) |
-|--------|-------------|-------------------|
-| **SCAN** (GPIO 17) | Monitor: hold to force-open squelch | — |
-| **MODE** (GPIO 27) | — | Cycle demodulation mode (NFM → FM → WFM → AM) |
-| **MEM** (GPIO 22) | Open bank selector | Save current channel to active bank |
+| Taste | Kurzer Druck | Langer Druck (≥1 s) |
+|-------|-------------|----------------------|
+| **SCAN** (GPIO 17) | Monitor: Squelch öffnen solange gedrückt | — |
+| **MODE** (GPIO 27) | — | Demodulationsmodus wechseln (NFM → FM → WFM → AM) |
+| **MEM** (GPIO 22) | Bank-Auswahl öffnen | Aktuellen Kanal in aktive Bank speichern |
 | **SQ+** (GPIO 23) | Squelch +2 dBFS | — |
 | **SQ−** (GPIO 24) | Squelch −2 dBFS | — |
-| **Encoder turn** | Next/previous channel (idle) · Volume (scanning) | — |
-| **Encoder press** | Scan start / stop | Open menu |
+| **Encoder drehen** | Kanal vor/zurück (Idle) · Lautstärke (Scan) | — |
+| **Encoder drücken** | Scan starten / stoppen | Menü öffnen |
 
 ---
 
-## Channel Configuration
+## Kanäle konfigurieren
 
-Edit `config/settings.py`:
+In `config/settings.py`:
 
 ```python
 CHANNELS = [
-    {"name": "Fire Dept 1",  "freq": 155_800_000, "mode": "NFM", "group": "BOS"},
-    {"name": "PMR Ch 1",     "freq": 446_006_250, "mode": "NFM", "group": "PMR"},
-    {"name": "WFM Radio",    "freq": 100_300_000, "mode": "WFM", "group": "FM"},
+    {"name": "Feuerwehr 1",  "freq": 155_800_000, "mode": "NFM", "group": "BOS"},
+    {"name": "PMR Kanal 1",  "freq": 446_006_250, "mode": "NFM", "group": "PMR"},
+    {"name": "UKW Radio",    "freq": 100_300_000, "mode": "WFM", "group": "FM"},
 ]
 ```
 
-Channels can also be added/edited at runtime via the web UI or the MEM button.
+Kanäle lassen sich auch zur Laufzeit über das Web-UI oder die MEM-Taste hinzufügen und bearbeiten.
 
-Key settings:
+Wichtige Einstellungen:
 
 ```python
-RTL_DEVICE_INDEX   = 0        # SDR dongle index
-RTL_PPM_CORRECTION = 0        # Set after calibration, e.g. -7
+RTL_DEVICE_INDEX   = 0        # SDR-Dongle-Index
+RTL_PPM_CORRECTION = 0        # Nach Kalibrierung setzen, z.B. -7
 RTL_GAIN           = "auto"
-SCAN_DWELL_TIME    = 0.15     # Seconds per channel while scanning
-SQUELCH_DEFAULT    = -60      # dBFS threshold
+SCAN_DWELL_TIME    = 0.15     # Sekunden pro Kanal beim Scan
+SQUELCH_DEFAULT    = -60      # dBFS-Schwelle
 ```
 
 ---
 
-## Web UI
+## Web-UI
 
-When started with `--web`, the scanner exposes a full REST + SSE interface at port 5000.
+Mit `--web` gestartet, stellt der Scanner eine REST + SSE-Schnittstelle auf Port 5000 bereit.
 
-| Endpoint | Function |
+| Endpunkt | Funktion |
 |----------|----------|
-| `GET /` | HTML control panel |
-| `GET /events` | SSE live status stream |
-| `GET /channels` | Channel list |
-| `POST /cmd/<action>` | Trigger any button event (e.g. `SCAN_TOGGLE`) |
-| `POST /tune/<index>` | Tune to a channel |
-| `POST /tune/freq` | Tune to a raw frequency `{freq, mode}` |
-| `POST /set/squelch` | Set squelch level `{level}` |
-| `POST /set/volume` | Set volume `{volume}` |
-| `POST /bank/load/<id>` | Switch memory bank |
-| `POST /rename/current` | Rename active channel `{name}` |
+| `GET /` | HTML-Bedienoberfläche |
+| `GET /events` | SSE Live-Status-Stream |
+| `GET /channels` | Kanalliste |
+| `POST /cmd/<action>` | Button-Event auslösen (z.B. `SCAN_TOGGLE`) |
+| `POST /tune/<index>` | Auf Kanal abstimmen |
+| `POST /tune/freq` | Direkte Frequenz `{freq, mode}` |
+| `POST /set/squelch` | Squelch setzen `{level}` |
+| `POST /set/volume` | Lautstärke setzen `{volume}` |
+| `POST /bank/load/<id>` | Memory-Bank wechseln |
+| `POST /rename/current` | Aktiven Kanal umbenennen `{name}` |
 
-Full endpoint list in `ui/web.py`.
+Alle 21 Endpunkte in `ui/web.py`.
 
 ---
 
-## Wi-Fi Hotspot
+## WLAN-Hotspot
 
-The Pi creates its own access point on boot:
+Der Pi erstellt beim Hochfahren einen eigenen Accesspoint:
 
-| | Default |
-|-|---------|
+| | Standard |
+|-|----------|
 | SSID | `SDR-Scanner` |
-| Password | `sdrscanner` |
-| Pi IP | `192.168.4.1` |
-| Web UI | `http://scanner.local:5000` or `http://192.168.4.1:5000` |
+| Passwort | `sdrscanner` |
+| Pi-IP | `192.168.4.1` |
+| Web-UI | `http://scanner.local:5000` oder `http://192.168.4.1:5000` |
 
-Change SSID/password:
+SSID/Passwort ändern:
 
 ```bash
-sudo bash hotspot/change_wifi.sh "MyScanner" "newpassword"
+sudo bash hotspot/change_wifi.sh "MeinScanner" "neuespasswort"
 ```
 
 ---
 
-## 3D-Printed Case
+## Bekannte Probleme
 
-All dimensions are in `case/case_params.scad` and included by both part files.
-
-- **Base** (`scanner_base.scad`): bottom shell with integrated front panel — print as one part
-- **Lid** (`scanner_lid.scad`): print upside down for a smooth top surface
-- **Mounting**: 4× M2.5 countersunk screws into heat inserts
-- **RPi 3B+**: `ZERO_HOLE_DX=58`, `ZERO_HOLE_DY=49`
-- **RPi Zero 2 W**: `ZERO_HOLE_DX=58`, `ZERO_HOLE_DY=23`
-
-Export STLs in OpenSCAD with F6, then slice individually.
-
----
-
-## Known Issues
-
-**fstrim hangs on boot** — SD cards often implement TRIM incorrectly. Fixed automatically by `setup.sh`, or manually:
+**fstrim hängt den Boot** — SD-Karten implementieren TRIM oft fehlerhaft. Wird von `setup.sh` automatisch behoben, oder manuell:
 ```bash
 sudo bash hotspot/fix_fstrim.sh
 ```
 
-**`kalibrate-rtl` not found** — the package is called `kalibrate-rtl` or `kalibrate` depending on OS version. `setup.sh` tries both.
+**`kalibrate-rtl` nicht gefunden** — das Paket heißt je nach OS-Version `kalibrate-rtl` oder `kalibrate`. `setup.sh` probiert beide.
 
 ---
 
-## systemd Services
+## systemd-Services
 
 ```bash
 sudo systemctl status sdr_scanner
@@ -230,6 +211,6 @@ journalctl -u sdr_hotspot -f
 
 ---
 
-## License
+## Lizenz
 
 MIT
