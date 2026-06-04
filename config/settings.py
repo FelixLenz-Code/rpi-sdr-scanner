@@ -95,7 +95,8 @@ GPIO_ENC_VCC    = 12   # Pin 32 – als Output-HIGH für Encoder-+ (3,3V)
 DISPLAY_WIDTH  = 480
 DISPLAY_HEIGHT = 320
 DISPLAY_FPS    = 15           # Framerate – 15 reicht für ein Scanner-UI
-DISPLAY_BRIGHTNESS = 80       # 0–100, falls Backlight per PWM steuerbar
+DISPLAY_BRIGHTNESS = 80       # 0–100 Starthelligkeit
+DISPLAY_BL_LEVELS  = [100, 70, 40, 15]  # Stufen zum Durchschalten per Menü
 
 # ── Touchscreen ───────────────────────────────────────────────────────────────
 # Waveshare 3,5" resistiver Touch meldet sich als /dev/input/touchscreen

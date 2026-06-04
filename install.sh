@@ -341,6 +341,17 @@ EOF
     ok "Display-Overlay eingetragen (waveshare35a / ILI9486, 90°)"
   fi
 
+  # Hardware-PWM auf GPIO 18 für Backlight-Dimmen aktivieren.
+  # dtoverlay=pwm setzt GPIO 18 beim Boot in ALT5 (PWM0_0). Das fbtft
+  # gpio-backlight bleibt registriert, aber der Pin ist im PWM-Modus –
+  # der Scanner steuert die Helligkeit dann via /sys/class/pwm/pwmchip0/.
+  if ! grep -q "dtoverlay=pwm.*pin=18\|dtoverlay=pwm,pin=18" "$BOOT_CFG" 2>/dev/null; then
+    echo "dtoverlay=pwm,pin=18,func=2" | sudo tee -a "$BOOT_CFG" > /dev/null
+    ok "Hardware-PWM für Backlight aktiviert (GPIO 18, ALT5)"
+  else
+    ok "Hardware-PWM bereits konfiguriert"
+  fi
+
   # Headless: ohne HDMI-Monitor würde /dev/fb0=SPI statt /dev/fb1 sein
   if ! grep -q "hdmi_force_hotplug" "$BOOT_CFG" 2>/dev/null; then
     echo "hdmi_force_hotplug=1" | sudo tee -a "$BOOT_CFG" > /dev/null
