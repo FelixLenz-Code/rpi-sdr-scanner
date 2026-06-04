@@ -1,6 +1,7 @@
 # core/buttons.py – GPIO-Tasten und Rotary-Encoder (erweitert um Bank-Events)
 
 import queue
+import time
 import logging
 from enum import Enum, auto
 from dataclasses import dataclass
@@ -29,6 +30,8 @@ class ButtonEvent(Enum):
     CALIBRATE    = auto()   # PPM-Kalibrierung starten
     MONITOR_ON   = auto()   # Monitor-Taste gedrückt → Squelch force-open
     MONITOR_OFF  = auto()   # Monitor-Taste losgelassen → Squelch normal
+    BT_SETUP     = auto()   # Bluetooth-Wizard öffnen
+    ENC_VOL_TOGGLE = auto() # Encoder-Modus wechseln: Kanal ↔ Lautstärke
 
 
 @dataclass
@@ -90,8 +93,11 @@ class _LgpioEncoder:
 
 class ButtonHandler:
     def __init__(self, event_queue: queue.Queue, debug: bool = False):
-        self._q     = event_queue
-        self._debug = debug
+        self._q        = event_queue
+        self._debug    = debug
+        # GPIO-Pins brauchen ~1s um nach Initialisierung zu stabilisieren.
+        # Spurious-Events in diesem Fenster (z.B. ENC_PRESS beim Start) werden verworfen.
+        self._ready_at = time.monotonic() + 1.5
         if not debug:
             self._setup_gpio()
 
@@ -100,7 +106,7 @@ class ButtonHandler:
             from gpiozero import Button
             btn_scan   = Button(cfg.GPIO_BTN_SCAN,   pull_up=True, bounce_time=0.05)
             btn_mode   = Button(cfg.GPIO_BTN_MODE,   pull_up=True, bounce_time=0.05,
-                                hold_time=1.0)
+                                hold_time=0.8)
             btn_mem    = Button(cfg.GPIO_BTN_MEMORY, pull_up=True, bounce_time=0.05,
                                 hold_time=1.5)
             btn_sq_up  = Button(cfg.GPIO_BTN_SQ_UP,  pull_up=True, bounce_time=0.03)
@@ -109,7 +115,22 @@ class ButtonHandler:
                                 hold_time=1.0)
             btn_scan.when_pressed    = lambda: self._push(ButtonEvent.MONITOR_ON)
             btn_scan.when_released   = lambda: self._push(ButtonEvent.MONITOR_OFF)
-            btn_mode.when_held       = lambda: self._push(ButtonEvent.MODE)
+
+            # Kurzer Druck → ENC_VOL_TOGGLE, langer Druck → MODE
+            # Flag verhindert dass der kurze Druck auch beim langen Druck feuert.
+            _mode_held = [False]
+
+            def _on_mode_held():
+                _mode_held[0] = True
+                self._push(ButtonEvent.MODE)
+
+            def _on_mode_released():
+                if not _mode_held[0]:
+                    self._push(ButtonEvent.ENC_VOL_TOGGLE)
+                _mode_held[0] = False
+
+            btn_mode.when_held     = _on_mode_held
+            btn_mode.when_released = _on_mode_released
             btn_mem.when_pressed     = lambda: self._push(ButtonEvent.MEMORY)
             btn_mem.when_held        = lambda: self._push(ButtonEvent.MEMORY_LONG)
             btn_sq_up.when_pressed   = lambda: self._push(ButtonEvent.SQ_UP)
@@ -131,10 +152,19 @@ class ButtonHandler:
             log.warning("GPIO-Setup Fehler: %s", e)
 
     def _push(self, event_type: ButtonEvent, extra: dict | None = None):
+        """Physischer GPIO-Event – wird im Startup-Fenster verworfen."""
+        if time.monotonic() < self._ready_at:
+            log.debug("Button-Event %s beim Start verworfen (GPIO noch instabil)",
+                      event_type.name)
+            return
         try:
             self._q.put_nowait(Event(type=event_type, extra=extra))
         except queue.Full:
             pass
 
     def inject(self, event_type: ButtonEvent, extra: dict | None = None):
-        self._push(event_type, extra)
+        """Programmatischer Event (Web-UI, Menü) – umgeht das Startup-Fenster."""
+        try:
+            self._q.put_nowait(Event(type=event_type, extra=extra))
+        except queue.Full:
+            pass

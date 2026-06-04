@@ -1,6 +1,6 @@
 # RPi SDR Scanner
 
-Kompakter Tischscanner im **1-DIN Autoradio-Format** auf Basis eines Raspberry Pi, eines RTL-SDR-Dongles und einem 3,5"-SPI-Touchscreen. Vorkonfigurierte Kanäle scannen, Memory-Bänke verwalten, manuell abstimmen — steuerbar über physische Tasten, einen Drehgeber oder ein Web-Interface per WLAN-Hotspot.
+Kompakter Tischscanner im **1-DIN Autoradio-Format** auf Basis eines Raspberry Pi, eines RTL-SDR-Dongles und einem 3,5"-SPI-Touchscreen. Vorkonfigurierte Kanäle scannen, Memory-Bänke verwalten, manuell abstimmen — steuerbar über physische Tasten, einen Drehgeber oder ein Web-Interface per WLAN-Hotspot. Audio wahlweise über den lokalen 3,5-mm-Ausgang oder einen **Bluetooth-A2DP-Lautsprecher**.
 
 ---
 
@@ -10,7 +10,7 @@ Kompakter Tischscanner im **1-DIN Autoradio-Format** auf Basis eines Raspberry P
 |-----------|---------|
 | SBC | Raspberry Pi 3B+ oder Zero 2 W |
 | SDR-Dongle | NooElec NESDR SMArt v5 (RTL-SDR) |
-| Display | Waveshare 3,5" IPS SPI (480×320) |
+| Display | MHS 3,5" IPS SPI (480×320, ILI9486-Controller, XPT2046-Touch) |
 
 ---
 
@@ -18,12 +18,14 @@ Kompakter Tischscanner im **1-DIN Autoradio-Format** auf Basis eines Raspberry P
 
 - **Kanalscanner** — scannt eine konfigurierbare Kanalliste, bleibt bei aktivem Signal stehen
 - **Memory-Bänke** — 10 benannte Bänke, persistent in SQLite
-- **Demodulationsmodi** — NFM, FM, WFM, AM (direkte IQ-Demodulation via `pyrtlsdr` + numpy/scipy)
-- **Squelch-Regelung** — einstellbare Schwelle mit Hysterese und Signal-Balkenanzeige
+- **Demodulationsmodi** — NFM, FM, WFM, AM (via `rtl_fm`)
+- **Squelch-Regelung** — einstellbare Schwelle mit Hysterese, Signal-Balkenanzeige und 3 Schnell-Presets (Normal / Offen / Streng)
 - **Monitor-Taste** — Squelch solange gedrückt halten zwangsweise öffnen (Mithören ohne Signal)
+- **Bluetooth-Audio** — A2DP-Lautsprecher koppeln, verbinden und automatisch wiederherstellen; integrierter Wizard im Display-Menü
 - **PPM-Kalibrierung** — integrierte Kalibrierung via `kalibrate-rtl`, Ergebnis wird automatisch gespeichert
 - **Web-UI** — Vollzugriff per Flask + SSE auf `http://scanner.local:5000`
 - **WLAN-Hotspot** — Pi als eigener Accesspoint (SSID: `SDR-Scanner`)
+- **Touch-Menü** — Tippen auf die Hauptanzeige öffnet ein Schnellzugriffsmenü
 - **HDMI-Modus** — skalierbares Vorschaufenster zur Entwicklung ohne SPI-Display
 
 ---
@@ -40,6 +42,7 @@ Kompakter Tischscanner im **1-DIN Autoradio-Format** auf Basis eines Raspberry P
 ```
 sdr_scanner/
 ├── main.py                  # Einstiegspunkt, CLI-Argumente
+├── start_scanner.sh         # Startscript für systemd (SDL/PA/BT-Umgebung)
 ├── config/
 │   └── settings.py          # Alle Konfigurationswerte
 ├── core/
@@ -47,13 +50,14 @@ sdr_scanner/
 │   ├── frequency.py         # Kanalliste, Scan-Navigation
 │   ├── squelch.py           # RSSI-Auswertung, Squelch-Logik
 │   ├── demodulator.py       # rtl_fm Subprocess-Wrapper
-│   ├── audio.py             # PCM → PulseAudio/aplay Pipeline
+│   ├── audio.py             # PCM → PulseAudio Pipeline
+│   ├── bluetooth.py         # BlueZ/D-Bus Wrapper für BT-A2DP-Audio
 │   ├── memory_banks.py      # 10 Memory-Bänke, SQLite-Persistenz
 │   ├── bookmarks.py         # Empfangs-Log, DB-Verbindung
 │   ├── buttons.py           # GPIO-Handler + ButtonEvent-Enum
 │   └── calibration.py       # PPM-Kalibrierung via kalibrate-rtl
 ├── ui/
-│   ├── display.py           # pygame Framebuffer-UI + Overlays
+│   ├── display.py           # pygame Framebuffer-UI + Overlays + BT-Wizard
 │   └── web.py               # Flask + SSE, REST-Endpunkte
 ├── hotspot/
 │   ├── hotspot_start.sh     # Von systemd beim Boot aufgerufen
@@ -66,7 +70,7 @@ sdr_scanner/
 
 ## Verdrahtung
 
-Alle Buttons und der Encoder liegen im **unteren Header-Block (Pins 29–40)** — konfliktfrei mit dem Waveshare SPI-Display, das Pins 11–26 belegt.
+Alle Buttons und der Encoder liegen im **unteren Header-Block (Pins 29–40)** — konfliktfrei mit dem MHS/ILI9486 SPI-Display, das Pins 11–26 belegt.
 
 ### Buttons (Pull-Up, gegen GND schalten)
 
@@ -88,9 +92,9 @@ Alle Buttons und der Encoder liegen im **unteren Header-Block (Pins 29–40)** �
 | SW (Taster) | 13 | 33     | – |
 | GND      | –   | 30 / 34   | beide GND-Pins nutzbar |
 
-### Display (Waveshare 3,5" SPI)
+### Display (MHS 3,5" SPI / ILI9486)
 
-Standardverdrahtung laut [Waveshare Wiki](https://www.waveshare.com/wiki/3.5inch_RPi_LCD_(A)) — direkter Aufsteck-Header, keine separate Verkabelung nötig. Das Display belegt GPIO 7–11, 17, 18, 25, 27.
+Direkter Aufsteck-Header (GPIO 7–11, 17, 18, 25, 27). Kompatibel mit dem `waveshare35a`-Kernel-Overlay (gleicher Chip + Pinout), wird von `install.sh` automatisch konfiguriert.
 
 ### RTL-SDR Dongle
 
@@ -113,18 +117,18 @@ echo 'blacklist dvb_usb_rtl28xxu' | sudo tee /etc/modprobe.d/blacklist-rtl.conf
 ```bash
 git clone https://github.com/FelixLenz-Code/rpi-sdr-scanner.git
 cd rpi-sdr-scanner
-bash setup.sh
+bash install.sh
 ```
 
-`setup.sh` installiert alle Abhängigkeiten, richtet den WLAN-Hotspot ein, installiert den systemd-Service und behebt den `fstrim`-Boot-Hänger (häufiges Problem mit SD-Karten).
+`install.sh` installiert alle Abhängigkeiten (inkl. Bluetooth-Pakete), richtet den WLAN-Hotspot ein, installiert den systemd-Service und behebt den `fstrim`-Boot-Hänger.
 
 **Optionen:**
 
 ```bash
-bash setup.sh --no-display     # Ohne Waveshare SPI-Treiber
-bash setup.sh --no-hotspot     # Ohne Hotspot-Einrichtung
-bash setup.sh --no-service     # Ohne systemd-Service
-bash setup.sh --ssid NAME --pass PASS  # Hotspot nicht-interaktiv konfigurieren
+bash install.sh --no-display     # Ohne SPI-Treiber (kein MHS-Display)
+bash install.sh --no-hotspot     # Ohne Hotspot-Einrichtung
+bash install.sh --no-service     # Ohne systemd-Service
+bash install.sh --ssid NAME --pass PASS  # Hotspot nicht-interaktiv konfigurieren
 ```
 
 ---
@@ -134,27 +138,53 @@ bash setup.sh --ssid NAME --pass PASS  # Hotspot nicht-interaktiv konfigurieren
 ```bash
 python3 main.py                    # Normal (SPI-Display, kein Web-UI)
 python3 main.py --web              # Mit Web-UI auf http://192.168.4.1:5000
-python3 main.py --hdmi             # HDMI-Fenster statt SPI (960×640) – noch ungetestet
-python3 main.py --hdmi-size 1920x1080  # – noch ungetestet
+python3 main.py --hdmi             # HDMI-Fenster statt SPI (960×640)
+python3 main.py --hdmi-size 1920x1080
 python3 main.py --debug            # Kein GPIO, kein rtl_fm, kein Framebuffer
 python3 main.py --no-display       # Nur Scanner-Kern + Web-UI
 ```
 
 Wenn kein Display erkannt wird (`/dev/fb0`, `DISPLAY`, `WAYLAND_DISPLAY`), deaktiviert sich die Display-UI automatisch — Scanner und Web-UI laufen trotzdem.
 
+Im systemd-Betrieb startet `start_scanner.sh` den Scanner: Es erkennt automatisch das richtige Framebuffer-Device (`fb_ili9486`), startet PulseAudio falls nötig und entsperrt Bluetooth-Adapter.
+
 ---
 
 ## Tastenbelegung
 
-| Taste | Kurzer Druck | Langer Druck (≥1 s) |
-|-------|-------------|----------------------|
-| **SCAN** (GPIO 17) | Monitor: Squelch öffnen solange gedrückt | — |
-| **MODE** (GPIO 27) | — | Demodulationsmodus wechseln (NFM → FM → WFM → AM) |
-| **MEM** (GPIO 22) | Bank-Auswahl öffnen | Aktuellen Kanal in aktive Bank speichern |
-| **SQ+** (GPIO 23) | Squelch +2 dBFS | — |
-| **SQ−** (GPIO 24) | Squelch −2 dBFS | — |
-| **Encoder drehen** | Kanal vor/zurück (Idle) · Lautstärke (Scan) | — |
+| Taste | Kurzer Druck | Langer Druck (≥ 0,8–1,5 s) |
+|-------|-------------|---------------------------|
+| **SCAN** (GPIO 16) | Monitor: Squelch öffnen solange gedrückt | — |
+| **MODE** (GPIO 19) | Encoder-Modus wechseln (Kanal ↔ Lautstärke) | Demodulationsmodus wechseln (NFM → FM → WFM → AM) |
+| **MEM** (GPIO 20) | Aktuellen Kanal in aktive Bank speichern | Bank-Auswahl öffnen |
+| **SQ+** (GPIO 21) | Squelch +2 dBFS | — |
+| **SQ−** (GPIO 26) | Squelch −2 dBFS | — |
+| **Encoder drehen** | Kanal vor/zurück **oder** Lautstärke (je nach Encoder-Modus) | — |
 | **Encoder drücken** | Scan starten / stoppen | Menü öffnen |
+
+> **Encoder-Modus:** Ein kurzer Druck auf MODE schaltet um, ob der Encoder den Kanal oder die Lautstärke regelt. Der aktive Modus wird im Display angezeigt.
+
+---
+
+## Bluetooth-Audio
+
+Der Scanner unterstützt A2DP-Lautsprecher (Bluetooth). Die Einrichtung erfolgt über den integrierten BT-Wizard im Display-Menü (Encoder lang drücken → „Bluetooth-Einrichtung").
+
+**Ablauf:**
+1. Menü öffnen → „Bluetooth-Einrichtung"
+2. Bereits bekannte Geräte werden sofort angezeigt
+3. „+ Neues Gerät" startet einen 10-Sekunden-Scan
+4. Gerät auswählen → Verbinden → Audio-Sink wird automatisch auf BT umgestellt
+
+**Auto-Reconnect:** Beim Systemstart verbindet sich der Scanner automatisch mit dem zuletzt gespeicherten Gerät (`BT_DEVICE_ADDRESS` in `config/settings.py`). Bei Verbindungsverlust versucht ein Hintergrundwatchdog alle 15 Sekunden neu zu verbinden.
+
+**Konfiguration:**
+
+```python
+# config/settings.py
+BT_DEVICE_ADDRESS  = "AA:BB:CC:DD:EE:FF"  # nach Pairing automatisch eingetragen
+BT_AUTO_RECONNECT  = True
+```
 
 ---
 
@@ -179,7 +209,8 @@ RTL_DEVICE_INDEX   = 0        # SDR-Dongle-Index
 RTL_PPM_CORRECTION = 0        # Nach Kalibrierung setzen, z.B. -7
 RTL_GAIN           = "auto"
 SCAN_DWELL_TIME    = 0.15     # Sekunden pro Kanal beim Scan
-SQUELCH_DEFAULT    = -60      # dBFS-Schwelle
+SQUELCH_DEFAULT    = -25      # dBFS-Startwert
+SQUELCH_PRESETS    = [(-25, "Normal"), (-100, "Offen"), (-5, "Streng")]
 ```
 
 ---
@@ -226,12 +257,14 @@ sudo bash hotspot/change_wifi.sh "MeinScanner" "neuespasswort"
 
 ## Bekannte Probleme
 
-**fstrim hängt den Boot** — SD-Karten implementieren TRIM oft fehlerhaft. Wird von `setup.sh` automatisch behoben, oder manuell:
+**fstrim hängt den Boot** — SD-Karten implementieren TRIM oft fehlerhaft. Wird von `install.sh` automatisch behoben, oder manuell:
 ```bash
 sudo bash hotspot/fix_fstrim.sh
 ```
 
-**`kalibrate-rtl` nicht gefunden** — das Paket heißt je nach OS-Version `kalibrate-rtl` oder `kalibrate`. `setup.sh` probiert beide.
+**`kalibrate-rtl` nicht gefunden** — das Paket heißt je nach OS-Version `kalibrate-rtl` oder `kalibrate`. `install.sh` probiert beide.
+
+**Display erscheint nicht als `/dev/fb1`** — ohne HDMI-Monitor könnte das SPI-Display als `/dev/fb0` erscheinen. `install.sh` setzt `hdmi_force_hotplug=1`, um das zu verhindern. `start_scanner.sh` erkennt das richtige fb-Device automatisch anhand des Treiber-Namens.
 
 ---
 

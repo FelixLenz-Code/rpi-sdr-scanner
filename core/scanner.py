@@ -24,6 +24,7 @@ from core.bookmarks    import BookmarkDB
 from core.memory_banks import MemoryBanks
 from core.buttons      import ButtonHandler, ButtonEvent, Event
 from core.calibration  import Calibrator
+from core.bluetooth    import BluetoothManager
 
 log = logging.getLogger(__name__)
 
@@ -35,6 +36,7 @@ class ScannerState(Enum):
     BANK_SELECT = auto()   # Bank-Auswahl-Overlay
     MENU        = auto()   # Hauptmenü
     CALIBRATING = auto()   # PPM-Kalibrierung läuft
+    BT_SETUP    = auto()   # Bluetooth-Einrichtungswizard
 
 
 
@@ -69,10 +71,19 @@ class Scanner:
         self._dongle_was_ok: bool = False  # für Verbindungsverlust-Erkennung
         self._retry_count: int = 0
         self._loaded_bank: Optional[int] = None  # welche Bank liegt im FrequencyManager
-        self.agc_enabled: bool = True   # True = rtl_fm -g auto, False = cfg.RTL_GAIN
+        self.agc_enabled: bool  = True   # True = rtl_fm -g auto, False = cfg.RTL_GAIN
+        self.enc_vol_mode: bool = False  # False = Encoder dreht Kanal, True = Lautstärke
 
         self._calib_log: list[str] = []   # letzte Meldungen für Display-Overlay
         self._calibrator: Optional[Calibrator] = None
+        self.scan_all_banks: bool = False  # True → nach Bank-Wrap zur nächsten Bank
+        self.bt = BluetoothManager()
+        self.bt.on_disconnect = self._bt_on_disconnect
+
+        # BT-Reconnect-State
+        self._bt_poll_at: float       = time.monotonic() + 15.0  # erste Prüfung nach 15 s
+        self._bt_reconnect_at: float  = 0.0   # >0: Reconnect zu diesem Zeitpunkt starten
+        self._bt_reconnecting: bool   = False  # verhindert parallele Reconnect-Threads
 
         # UI-Callback
         self.on_state_change = lambda: None
@@ -88,6 +99,7 @@ class Scanner:
             self._tune_current()
         log.info("Bereit – %d Kanäle, Bank %d ('%s')",
                  len(self.freq), self.banks.active_bank, self.banks.active_bank_name)
+        threading.Thread(target=self._bt_watchdog, daemon=True, name="bt-watchdog").start()
 
     def stop(self):
         self._cancel_scan_timer()
@@ -171,6 +183,67 @@ class Scanner:
                 self.on_state_change()
             self._dongle_was_ok = self.demod.dongle_ok
 
+    def _bt_watchdog(self):
+        """
+        Dedizierter Hintergrundthread für BT-Verbindungsüberwachung und Auto-Reconnect.
+        Läuft unabhängig vom Hauptloop – kein Blocking, kein State-Chaos.
+        """
+        log.warning("BT-Watchdog gestartet (Gerät: %s)", cfg.BT_DEVICE_ADDRESS or "–")
+        time.sleep(10)  # Warmup: warten bis PulseAudio und BlueZ bereit sind
+
+        while True:
+            try:
+                self._bt_watchdog_tick()
+            except Exception as e:
+                log.warning("BT-Watchdog Fehler: %s", e)
+            time.sleep(15)
+
+    def _bt_watchdog_tick(self):
+        if self.debug:
+            return
+        addr = cfg.BT_DEVICE_ADDRESS
+        if not cfg.BT_AUTO_RECONNECT or not addr:
+            return
+
+        # Verbindungsverlust erkennen: connected_address gesetzt aber D-Bus sagt nein
+        if self.bt.connected_address and not self.bt.is_connected():
+            log.warning("BT: Verbindung zu %s verloren – Audio auf lokal", self.bt.connected_address)
+            self.bt.connected_address = None
+            try:
+                self.audio.stop()
+                time.sleep(0.3)
+                self.audio.start()
+            except Exception as e:
+                log.warning("BT audio-restart nach Disconnect: %s", e)
+            self.on_state_change()
+
+        # Nicht verbunden → Reconnect versuchen
+        if self.bt.connected_address:
+            return  # bereits verbunden
+        if self._bt_reconnecting:
+            return  # läuft schon
+
+        self._bt_reconnecting = True
+        log.warning("BT: Reconnect-Versuch → %s", addr)
+        try:
+            if not self.bt.available():
+                log.warning("BT: kein Adapter – Versuch übersprungen")
+                return
+            ok = self.bt.connect(addr)
+            if ok:
+                self.bt.connected_address = addr
+                sink_ok = self.bt.set_audio_sink(addr)
+                if sink_ok:
+                    self.audio.stop()
+                    time.sleep(0.3)
+                    self.audio.start()
+                self.on_state_change()
+                log.warning("BT: Reconnect OK → %s", addr)
+            else:
+                log.warning("BT: Reconnect fehlgeschlagen – nächster Versuch in ~15s")
+        finally:
+            self._bt_reconnecting = False
+
     # ── Event-Handling ────────────────────────────────────────────────────────
 
     def _handle_event(self, event: Event):
@@ -190,6 +263,21 @@ class Scanner:
             self.on_state_change()
             return
 
+        # ── BT-Wizard: Encoder navigiert, ENC_PRESS bestätigt ────────────
+        if self.state == ScannerState.BT_SETUP:
+            disp = getattr(self, '_display_ref', None)
+            if t == ButtonEvent.ENC_UP:
+                if disp: disp.bt_cursor_up()
+            elif t == ButtonEvent.ENC_DOWN:
+                if disp: disp.bt_cursor_down()
+            elif t == ButtonEvent.ENC_PRESS:
+                if disp: disp.bt_confirm()
+            elif t == ButtonEvent.MENU:
+                if disp: disp.bt_back()
+                else: self.state = ScannerState.IDLE
+            self.on_state_change()
+            return
+
         # ── Bank-Select-Modus: Encoder dreht Bank ─────────────────────────
         if self.state == ScannerState.BANK_SELECT:
             if t == ButtonEvent.ENC_UP:
@@ -198,8 +286,10 @@ class Scanner:
             elif t == ButtonEvent.ENC_DOWN:
                 self.banks.prev_bank()
                 self._load_active_bank()
+            elif t == ButtonEvent.BANK_LOAD:
+                self._load_active_bank()
             elif t in (ButtonEvent.ENC_PRESS, ButtonEvent.MENU):
-                self.state = ScannerState.IDLE   # schließen, Bank bereits geladen
+                self.state = ScannerState.IDLE
             self.on_state_change()
             return
 
@@ -233,21 +323,32 @@ class Scanner:
             self.squelch.decrease()
             self._save_squelch_to_channel()
 
+        elif t == ButtonEvent.ENC_VOL_TOGGLE:
+            if self.state in (ScannerState.IDLE, ScannerState.ACTIVE):
+                self.enc_vol_mode = not self.enc_vol_mode
+                log.info("Encoder-Modus: %s", "Lautstärke" if self.enc_vol_mode else "Kanal")
+
         elif t == ButtonEvent.ENC_UP:
             if self.state in (ScannerState.IDLE, ScannerState.ACTIVE):
-                self.freq.next()
-                self._last_nav_at = time.monotonic()
-                self._needs_retune = True
-                self.on_state_change()   # Freq/Name sofort in UI aktualisieren
+                if self.enc_vol_mode:
+                    self.audio.volume_up()
+                else:
+                    self.freq.next()
+                    self._last_nav_at = time.monotonic()
+                    self._needs_retune = True
+                    self.on_state_change()
             else:
                 self.audio.volume_up()
 
         elif t == ButtonEvent.ENC_DOWN:
             if self.state in (ScannerState.IDLE, ScannerState.ACTIVE):
-                self.freq.prev()
-                self._last_nav_at = time.monotonic()
-                self._needs_retune = True
-                self.on_state_change()   # Freq/Name sofort in UI aktualisieren
+                if self.enc_vol_mode:
+                    self.audio.volume_down()
+                else:
+                    self.freq.prev()
+                    self._last_nav_at = time.monotonic()
+                    self._needs_retune = True
+                    self.on_state_change()
             else:
                 self.audio.volume_down()
 
@@ -258,6 +359,9 @@ class Scanner:
             self.state = (ScannerState.IDLE
                           if self.state == ScannerState.MENU
                           else ScannerState.MENU)
+
+        elif t == ButtonEvent.BT_SETUP:
+            self.state = ScannerState.BT_SETUP
 
         elif t == ButtonEvent.BANK_NEXT:
             self.banks.next_bank()
@@ -319,6 +423,11 @@ class Scanner:
         self._tune_current()
         log.info("Bank %d geladen: %d Kanäle", self.banks.active_bank, len(self.freq))
 
+    def _bt_on_disconnect(self) -> None:
+        """Wird von bt.disconnect() gerufen (explizite Trennung aus dem Menü)."""
+        self.bt.connected_address = None
+        self.on_state_change()
+
     # ── Scan ──────────────────────────────────────────────────────────────────
 
     def _toggle_scan(self):
@@ -355,11 +464,22 @@ class Scanner:
             self._active_since = time.monotonic()
             self.on_state_change()
         else:
+            old_idx = self.freq.scan_index
+            n       = len(self.freq.channels)
             ch = self.freq.scan_next()
             if ch:
-                self.freq.index = self.freq.scan_index  # current → gescannter Kanal
+                self.freq.index = self.freq.scan_index
                 self._tune(ch)
                 self.on_state_change()
+            # Wrap: old_idx war letzter Index → nächste Bank laden
+            # (funktioniert auch bei Einzelkanal-Bänken)
+            if self.scan_all_banks and n > 0 and old_idx == n - 1:
+                for _ in range(10):          # leere Bänke überspringen
+                    self.banks.next_bank()
+                    if self.banks.list_bank():
+                        self._load_active_bank()
+                        log.info("Alle-Bänke-Scan: Bank %d", self.banks.active_bank)
+                        break
             self._schedule_next_channel()
 
     def _skip_channel(self):
@@ -560,7 +680,10 @@ class Scanner:
             # Hardware
             "dongle_ok":    self.demod.dongle_ok,
             "comp_enabled": self.audio.comp_enabled,
-            "agc_enabled":  self.agc_enabled,
-            # welche Bank liegt gerade im FrequencyManager (None = Standardkanäle)
-            "loaded_bank":  self._loaded_bank,
+            "agc_enabled":    self.agc_enabled,
+            "enc_vol_mode":   self.enc_vol_mode,
+            "scan_all_banks": self.scan_all_banks,
+            "loaded_bank":    self._loaded_bank,
+            "bt_connected":   self.bt.is_connected(),
+            "bt_name":        self.bt.connected_name() or "",
         }

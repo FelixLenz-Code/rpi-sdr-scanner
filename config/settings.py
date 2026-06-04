@@ -30,7 +30,8 @@ AUDIO_COMP_MAKEUP    = 1.8    # Makeup-Gain nach Kompression: hebt leise Stellen
 # ── Scanner-Verhalten ─────────────────────────────────────────────────────────
 SCAN_DWELL_TIME = 0.15        # Sekunden pro Kanal beim Scan
 SCAN_RESUME_DELAY = 3.5       # Sekunden auf aktivem Kanal vor Weiterscan
-SQUELCH_DEFAULT    = -25  # dBFS, Startwert (IQ-Leistung 10·log10, Bereich −30 bis −5 dBFS)
+SQUELCH_DEFAULT    = -25  # dBFS, Startwert
+SQUELCH_PRESETS    = [(-25, "Normal"), (-100, "Offen"), (-5, "Streng")]  # Menü-Presets (IQ-Leistung 10·log10, Bereich −30 bis −5 dBFS)
                           # Kalibrierung: ohne Signal messen → Schwelle ~3 dB über Rauschboden
 SQUELCH_STEP       = 2    # dB pro Tastendruck
 SQUELCH_HOLD_TIME  = 1.2  # Sekunden: Squelch bleibt nach Öffnen mindestens so lange offen.
@@ -113,6 +114,10 @@ COLOR_MUTED     = (90, 110, 130)
 COLOR_ACTIVE    = (0,  220, 100)   # Grün – aktiver Empfang
 COLOR_SCAN      = (255, 180,   0)  # Gelb – Scan läuft
 COLOR_WARN      = (220,  60,  60)  # Rot – Fehler
+
+# ── Bluetooth ─────────────────────────────────────────────────────────────────
+BT_DEVICE_ADDRESS  = ""     # MAC nach erstem Pairing automatisch eingetragen
+BT_AUTO_RECONNECT  = True   # beim Start versuchen zu verbinden
 
 # ── Web-UI ────────────────────────────────────────────────────────────────────
 WEB_HOST = "0.0.0.0"

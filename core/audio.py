@@ -141,11 +141,21 @@ class AudioPipeline:
                     _prev_out = out   # nur gültige Signalchunks für PLC merken
                 return (out, _pa.paContinue)
 
+            # PulseAudio-Device bevorzugen (ermöglicht Sink-Wechsel für BT-Audio)
+            pulse_idx = None
+            for i in range(pa.get_device_count()):
+                d = pa.get_device_info_by_host_api_type_and_index(0, i) if False else \
+                    pa.get_device_info_by_index(i)
+                if d.get('maxOutputChannels', 0) > 0 and 'pulse' in d.get('name', '').lower():
+                    pulse_idx = i
+                    break
+
             stream = pa.open(
                 format=_pa.paInt16,
                 channels=1,
                 rate=cfg.AUDIO_RATE,
                 output=True,
+                output_device_index=pulse_idx,
                 frames_per_buffer=_FRAMES_PER_BUFFER,
                 stream_callback=_cb,
             )
@@ -171,7 +181,7 @@ class AudioPipeline:
             "-r", str(cfg.AUDIO_RATE),
             "-f", "S16_LE",
             "-c", "1",
-            "-D", cfg.AUDIO_DEVICE,
+            "-D", "pulse",
             "-B", "500000",
             "-F", "100000",
             "-",

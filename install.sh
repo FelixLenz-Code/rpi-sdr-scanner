@@ -143,8 +143,14 @@ PACKAGES=(
   # Audio
   pulseaudio
   pulseaudio-utils
+  pulseaudio-module-bluetooth
   libportaudio2
   alsa-utils
+  # Bluetooth
+  bluez
+  bluez-tools
+  python3-dbus
+  python3-gi
   # Display
   python3-pygame
   # Python
@@ -246,6 +252,40 @@ else
 fi
 
 # ══════════════════════════════════════════════════════════════════════════════
+#  4b. BLUETOOTH KONFIGURIEREN
+# ══════════════════════════════════════════════════════════════════════════════
+
+step "Bluetooth konfigurieren"
+
+# Bluetooth-Service aktivieren
+sudo systemctl enable bluetooth 2>/dev/null || true
+
+# PulseAudio BT-Module in default.pa eintragen (falls noch nicht vorhanden)
+PA_CONF="/etc/pulse/default.pa"
+if [ -f "$PA_CONF" ]; then
+  grep -q "module-bluetooth-discover" "$PA_CONF" 2>/dev/null || {
+    sudo tee -a "$PA_CONF" > /dev/null << 'EOF'
+
+# Bluetooth A2DP
+load-module module-bluetooth-policy
+load-module module-bluetooth-discover
+EOF
+    ok "PulseAudio BT-Module eingetragen"
+  }
+  ok "PulseAudio BT bereits konfiguriert"
+else
+  warn "PulseAudio default.pa nicht gefunden – BT-Audio manuell konfigurieren"
+fi
+
+# User zur bluetooth-Gruppe (D-Bus Zugriff)
+if ! groups | grep -q "\bbluetooth\b"; then
+  sudo usermod -aG bluetooth "$USER"
+  ok "User $USER zur Gruppe bluetooth hinzugefügt"
+else
+  ok "User $USER bereits in Gruppe bluetooth"
+fi
+
+# ══════════════════════════════════════════════════════════════════════════════
 #  5. SCANNER-SOFTWARE INSTALLIEREN
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -274,43 +314,43 @@ ok "Verzeichnisstruktur bereit"
 # ══════════════════════════════════════════════════════════════════════════════
 
 if $OPT_DISPLAY; then
-  step "Waveshare 3,5\" Display-Treiber einrichten"
+  step "MHS 3,5\" Display-Treiber einrichten (ILI9486 / XPT2046)"
 
   BOOT_CFG="/boot/firmware/config.txt"
   [ -f "$BOOT_CFG" ] || BOOT_CFG="/boot/config.txt"
 
-  # Prüfen ob Treiber schon konfiguriert ist
-  if grep -q "dtoverlay=waveshare35a\|dtoverlay=ili9486" "$BOOT_CFG" 2>/dev/null; then
-    ok "Waveshare-Overlay bereits konfiguriert"
+  # User zur video-Gruppe hinzufügen (Zugriff auf /dev/fb1)
+  if ! groups | grep -q "\bvideo\b"; then
+    sudo usermod -aG video "$USER"
+    ok "User $USER zur Gruppe video hinzugefügt"
   else
-    info "Konfiguriere Display-Overlay in $BOOT_CFG..."
-
-    sudo tee -a "$BOOT_CFG" > /dev/null << 'EOF'
-
-# Waveshare 3.5" IPS Display (35a / ILI9486)
-dtparam=spi=on
-dtoverlay=waveshare35a
-# Alternativ bei anderen Modellen: dtoverlay=ili9486,speed=20000000
-EOF
-    ok "Display-Overlay eingetragen"
+    ok "User $USER bereits in Gruppe video"
   fi
 
-  # Framebuffer-Device für SDL konfigurieren
-  SDL_ENV_FILE="/etc/profile.d/sdr_scanner_display.sh"
-  sudo tee "$SDL_ENV_FILE" > /dev/null << 'EOF'
-# SDR Scanner Display-Umgebung
-export SDL_VIDEODRIVER=fbcon
-export SDL_FBDEV=/dev/fb1
-export SDL_NOMOUSE=1
-export DISPLAY=:0
+  # Display-Overlay konfigurieren (ILI9486, waveshare35a-kompatibel)
+  if grep -q "dtoverlay=waveshare35\|dtoverlay=MHS35\|dtoverlay=ili9486" "$BOOT_CFG" 2>/dev/null; then
+    ok "Display-Overlay bereits konfiguriert"
+  else
+    info "Konfiguriere MHS35/ILI9486 Overlay in $BOOT_CFG..."
+    sudo tee -a "$BOOT_CFG" > /dev/null << 'EOF'
+
+# MHS 3.5" SPI Display (ILI9486 Controller, XPT2046 Touch)
+# waveshare35a ist kompatibel: gleicher Chip + GPIO-Pinout
+dtoverlay=waveshare35a,speed=27000000,rotate=90
 EOF
-  ok "SDL-Umgebungsvariablen gesetzt ($SDL_ENV_FILE)"
+    ok "Display-Overlay eingetragen (waveshare35a / ILI9486, 90°)"
+  fi
 
-  # Touchscreen-Kalibrierung: ts_calibrate nach Reboot erinnern
-  info "Touchscreen-Kalibrierung: Nach Neustart einmalig 'sudo ts_calibrate' ausführen"
+  # Headless: ohne HDMI-Monitor würde /dev/fb0=SPI statt /dev/fb1 sein
+  if ! grep -q "hdmi_force_hotplug" "$BOOT_CFG" 2>/dev/null; then
+    echo "hdmi_force_hotplug=1" | sudo tee -a "$BOOT_CFG" > /dev/null
+    ok "hdmi_force_hotplug=1 gesetzt → SPI bleibt auf /dev/fb1"
+  else
+    ok "hdmi_force_hotplug bereits gesetzt"
+  fi
 
-  # tslib installieren (Waveshare Touch)
-  sudo apt-get install -y --no-install-recommends tslib libts-dev -qq 2>/dev/null || \
+  # tslib für resistiven Touchscreen installieren
+  sudo apt-get install -y --no-install-recommends tslib libts-dev evtest -qq 2>/dev/null || \
     warn "tslib nicht installierbar – Touchscreen eventuell ohne Kalibrierung"
 
   TSLIB_CONF="/etc/ts.conf"
@@ -324,7 +364,6 @@ EOF
     ok "tslib konfiguriert"
   fi
 
-  TSDEV="/dev/input/touchscreen"
   TS_ENV="/etc/environment"
   grep -q "TSLIB_TSDEVICE" "$TS_ENV" 2>/dev/null || {
     echo 'TSLIB_TSDEVICE=/dev/input/touchscreen' | sudo tee -a "$TS_ENV" > /dev/null
@@ -332,6 +371,8 @@ EOF
     echo 'SDL_MOUSEDRV=TSLIB'                    | sudo tee -a "$TS_ENV" > /dev/null
     ok "Touch-Umgebungsvariablen gesetzt"
   }
+
+  info "Touchscreen-Kalibrierung: Nach Neustart einmalig 'sudo ts_calibrate' ausführen"
 
 else
   info "Display-Treiber übersprungen (--no-display)"
@@ -466,7 +507,7 @@ if $OPT_SERVICE; then
 
   sudo tee "$SERVICE_FILE" > /dev/null << EOF
 [Unit]
-Description=RPi SDR Scanner
+Description=RPi SDR Tischscanner
 After=network.target sound.target sdr_hotspot.service
 Wants=sdr_hotspot.service
 
@@ -474,16 +515,14 @@ Wants=sdr_hotspot.service
 Type=simple
 User=${USER}
 WorkingDirectory=${INSTALL_DIR}
-ExecStart=/usr/bin/python3 ${INSTALL_DIR}/main.py --web
+ExecStartPre=/bin/bash -c 'for i in \$(seq 1 30); do ls /dev/fb* >/dev/null 2>&1 && exit 0; sleep 0.5; done; exit 1'
+ExecStart=/bin/bash ${INSTALL_DIR}/start_scanner.sh
 Restart=on-failure
 RestartSec=5
 StandardOutput=journal
 StandardError=journal
-Environment=SDL_VIDEODRIVER=fbcon
-Environment=SDL_FBDEV=/dev/fb1
-Environment=TSLIB_TSDEVICE=/dev/input/touchscreen
-Environment=SDL_MOUSEDEV=/dev/input/touchscreen
-Environment=SDL_MOUSEDRV=TSLIB
+KillMode=control-group
+Environment=PYTHONUNBUFFERED=1
 
 [Install]
 WantedBy=multi-user.target
@@ -592,12 +631,15 @@ if $OPT_HOTSPOT; then
   echo -e "     Verbinden mit Passwort: ${BOLD}${HOTSPOT_PASS}${NC}"
   echo -e "     Browser: ${CYAN}http://scanner.local${NC}  oder  ${CYAN}http://${HOTSPOT_IP}:5000${NC}"
   echo ""
-  echo -e "  ${CYAN}3.${NC} Touchscreen kalibrieren (einmalig nach Reboot):"
+  echo -e "  ${CYAN}3.${NC} Display prüfen: SPI-Device vorhanden?"
+  echo -e "     ${BOLD}ls /dev/fb*${NC}   (fb1 = SPI-Display aktiv)"
+  echo ""
+  echo -e "  ${CYAN}4.${NC} Touchscreen kalibrieren (einmalig nach Reboot):"
   echo -e "     ${BOLD}sudo ts_calibrate${NC}"
   echo ""
-  echo -e "  ${CYAN}4.${NC} PPM-Kalibrierung in der Web-UI (Sidebar → Kalibrierung)"
+  echo -e "  ${CYAN}5.${NC} PPM-Kalibrierung in der Web-UI (Sidebar → Kalibrierung)"
   echo ""
-  echo -e "  ${CYAN}5.${NC} WLAN-Passwort ändern (Sicherheit!):"
+  echo -e "  ${CYAN}6.${NC} WLAN-Passwort ändern (Sicherheit!):"
   echo -e "     ${BOLD}sudo bash ${INSTALL_DIR}/hotspot/change_wifi.sh${NC}"
 fi
 echo ""

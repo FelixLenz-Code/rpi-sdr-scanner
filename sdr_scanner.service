@@ -6,17 +6,14 @@ After=network.target sound.target
 Type=simple
 User=pi
 WorkingDirectory=/home/pi/sdr_scanner
-ExecStart=/usr/bin/python3 /home/pi/sdr_scanner/main.py --web
+ExecStartPre=/bin/bash -c 'for i in $(seq 1 30); do ls /dev/fb* >/dev/null 2>&1 && exit 0; sleep 0.5; done; exit 1'
+ExecStart=/bin/bash /home/pi/sdr_scanner/start_scanner.sh
 Restart=on-failure
 RestartSec=5
 StandardOutput=journal
 StandardError=journal
 KillMode=control-group
-
-# SPI-Display (Waveshare 3.5", /dev/fb1)
-Environment=SDL_VIDEODRIVER=fbcon
-Environment=SDL_FBDEV=/dev/fb1
-Environment=SDL_NOMOUSE=1
+Environment=PYTHONUNBUFFERED=1
 
 [Install]
 WantedBy=multi-user.target
