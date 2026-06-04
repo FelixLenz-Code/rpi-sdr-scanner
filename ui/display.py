@@ -38,97 +38,6 @@ W = cfg.DISPLAY_WIDTH   # 480
 H = cfg.DISPLAY_HEIGHT  # 320
 
 
-class _BacklightController:
-    """
-    Helligkeitssteuerung für SPI-Displays. Versucht in dieser Reihenfolge:
-    1. Hardware-PWM via /sys/class/pwm/pwmchip0/  (benötigt dtoverlay=pwm,pin=18,func=2)
-    2. Sysfs-Backlight /sys/class/backlight/*/brightness mit max_brightness > 1
-    3. Nur An/Aus via bl_power (gpio-backlight, kein echtes Dimmen)
-    """
-    _PWM_CHIP = '/sys/class/pwm/pwmchip0'
-    _PWM_CHAN = 0
-    _PERIOD   = 1_000_000   # 1 MHz Periode → 1 kHz PWM-Frequenz (in ns)
-
-    def __init__(self):
-        self._method   = 'none'
-        self._pwm_path: str | None = None
-        self._bl_dir:   str | None = None
-        self._max_bl    = 1
-        self._current   = cfg.DISPLAY_BRIGHTNESS
-        self._init()
-
-    def _init(self):
-        # 1. Hardware-PWM
-        pwm_path = f'{self._PWM_CHIP}/pwm{self._PWM_CHAN}'
-        try:
-            if not os.path.exists(pwm_path):
-                with open(f'{self._PWM_CHIP}/export', 'w') as f:
-                    f.write(str(self._PWM_CHAN))
-                time.sleep(0.15)
-            with open(f'{pwm_path}/period', 'w') as f:
-                f.write(str(self._PERIOD))
-            with open(f'{pwm_path}/enable', 'w') as f:
-                f.write('1')
-            self._pwm_path = pwm_path
-            self._method   = 'pwm'
-            log.info("Backlight: Hardware-PWM (%s)", pwm_path)
-            return
-        except Exception as e:
-            log.info("Backlight: PWM nicht verfügbar (%s) – versuche sysfs", e)
-
-        # 2. Sysfs-Backlight mit echtem Dimmen
-        import glob
-        for p in sorted(glob.glob('/sys/class/backlight/*/max_brightness')):
-            try:
-                max_b = int(open(p).read().strip())
-                if max_b > 1:
-                    self._bl_dir  = os.path.dirname(p)
-                    self._max_bl  = max_b
-                    self._method  = 'sysfs'
-                    log.info("Backlight: sysfs (%s, max=%d)", self._bl_dir, max_b)
-                    return
-            except Exception:
-                continue
-
-        # 3. An/Aus via bl_power
-        self._method = 'onoff'
-        log.info("Backlight: nur An/Aus (gpio-backlight, kein Dimmen)")
-
-    def set(self, level: int) -> None:
-        """Setzt Helligkeit 0–100. 0 schaltet das Backlight aus."""
-        level = max(0, min(100, level))
-        self._current = level
-        try:
-            if self._method == 'pwm' and self._pwm_path:
-                duty = int(self._PERIOD * level / 100)
-                with open(f'{self._pwm_path}/duty_cycle', 'w') as f:
-                    f.write(str(duty))
-            elif self._method == 'sysfs' and self._bl_dir:
-                b = int(self._max_bl * level / 100)
-                with open(f'{self._bl_dir}/brightness', 'w') as f:
-                    f.write(str(b))
-            else:
-                # An/Aus-Fallback: alle bekannten bl_power-Pfade probieren
-                for p in ['/sys/class/backlight/fb_ili9486/bl_power',
-                          '/sys/class/backlight/soc:backlight/bl_power']:
-                    try:
-                        with open(p, 'w') as f:
-                            f.write('0' if level > 0 else '1')
-                        break
-                    except OSError:
-                        continue
-        except Exception as e:
-            log.warning("Backlight set(%d): %s", level, e)
-
-    @property
-    def level(self) -> int:
-        return self._current
-
-    @property
-    def can_dim(self) -> bool:
-        return self._method in ('pwm', 'sysfs')
-
-
 class DisplayUI:
     def __init__(self, scanner, debug: bool = False,
                  hdmi: bool = False, hdmi_size: tuple | None = None):
@@ -148,7 +57,6 @@ class DisplayUI:
         self._np       = None   # numpy-Referenz
 
         # Menü-Zustand
-        self._bl = _BacklightController()   # initialisiert sich lazy in _run()
 
         # Touch-Menü-Zustand
         self._touch_menu_open:    bool = False
@@ -650,15 +558,11 @@ class DisplayUI:
         else:
             bt_lbl = "Bluetooth-Setup"
         bank_lbl = f"Bank: B{s['bank']} {s['bank_name']}"
-        bl = self._bl.level
-        dim_tag = " (Dimmen)" if self._bl.can_dim else " (An/Aus)"
-        bl_lbl = f"Helligkeit: {bl}%{dim_tag}"
         return [
             (bank_lbl,               "MEMORY"),
             ("Kalibrierung starten", "CALIBRATE"),
             (scan_lbl,               "__SCAN_ALL__"),
             (sq_lbl,                 "__SQ_PRESET__"),
-            (bl_lbl,                 "__BRIGHTNESS__"),
             (bt_lbl,                 "BT_SETUP"),
             ("Menü schließen",       "__CLOSE__"),
         ]
@@ -748,16 +652,6 @@ class DisplayUI:
             self._draw()
             return
 
-        if action == "__BRIGHTNESS__":
-            levels = cfg.DISPLAY_BL_LEVELS
-            cur = self._bl.level
-            try:
-                idx = levels.index(cur)
-            except ValueError:
-                idx = -1
-            self._bl.set(levels[(idx + 1) % len(levels)])
-            self._draw()
-            return
 
         # ButtonEvent-Aktionen: Menü zuerst schließen, dann Event ins IDLE injizieren
         self._scanner.buttons.inject(ButtonEvent.MENU)
