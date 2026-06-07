@@ -357,6 +357,17 @@ EOF
     ok "hdmi_force_hotplug bereits gesetzt"
   fi
 
+  # Kernel-Konsole auf fb0 (HDMI) umleiten – fb1 (SPI) bleibt für Splash/Scanner frei
+  CMDLINE="/boot/firmware/cmdline.txt"
+  [ -f "$CMDLINE" ] || CMDLINE="/boot/cmdline.txt"
+  if [ -f "$CMDLINE" ]; then
+    grep -q "fbcon=map:0" "$CMDLINE" || sudo sed -i 's/$/ fbcon=map:0/' "$CMDLINE"
+    grep -qw "quiet" "$CMDLINE"      || sudo sed -i 's/$/ quiet/'       "$CMDLINE"
+    ok "Kernel-Konsole auf HDMI (fb0) umgeleitet (fbcon=map:0 quiet in cmdline.txt)"
+  else
+    warn "cmdline.txt nicht gefunden – fbcon=map:0 bitte manuell eintragen"
+  fi
+
   # tslib für resistiven Touchscreen installieren
   sudo apt-get install -y --no-install-recommends tslib libts-dev evtest -qq 2>/dev/null || \
     warn "tslib nicht installierbar – Touchscreen eventuell ohne Kalibrierung"

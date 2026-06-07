@@ -50,6 +50,15 @@ EOF
         # ── fstrim deaktivieren (SD-Karten-Hänger beim Boot) ──────────────
         systemctl mask fstrim.service fstrim.timer 2>/dev/null || true
 
+        # ── Kernel-Konsole auf HDMI (fb0) umleiten – SPI-Display (fb1) frei ──
+        for _CMDLINE in /boot/firmware/cmdline.txt /boot/cmdline.txt; do
+            [ -f "$_CMDLINE" ] || continue
+            grep -q "fbcon=map:0" "$_CMDLINE" || sed -i 's/$/ fbcon=map:0/' "$_CMDLINE"
+            grep -qw "quiet" "$_CMDLINE"      || sed -i 's/$/ quiet/'       "$_CMDLINE"
+            break
+        done
+        unset _CMDLINE
+
         # ── sudoers: Hotspot-Toggle ohne Passwort ─────────────────────────
         cat > /etc/sudoers.d/sdr-hotspot << 'EOF'
 pi ALL=(ALL) NOPASSWD: /usr/bin/systemctl start sdr_hotspot.service, /usr/bin/systemctl stop sdr_hotspot.service, /bin/bash /usr/share/sdr-scanner/hotspot/setup_hotspot.sh
