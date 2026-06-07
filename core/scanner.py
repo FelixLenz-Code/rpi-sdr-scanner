@@ -150,11 +150,39 @@ class Scanner:
         if not ch or self.debug:
             return
         text = ch.name
+
         def _run():
             uid = os.getuid()
             env = {**os.environ,
-                   "XDG_RUNTIME_DIR":   f"/run/user/{uid}",
+                   "XDG_RUNTIME_DIR":    f"/run/user/{uid}",
                    "PULSE_RUNTIME_PATH": f"/run/user/{uid}/pulse"}
+            # MBROLA: deutlich natürlicher als plain espeak-ng, fast genug für Pi 3B+
+            for voice in ("mb-de6", "mb-de7", "mb-de8"):
+                try:
+                    esp = subprocess.Popen(
+                        ["espeak-ng", "-v", voice, "-s", "140", "-a", "180",
+                         "--stdout", "--", text],
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.DEVNULL,
+                        env=env,
+                    )
+                    aplay = subprocess.Popen(
+                        ["aplay", "-D", cfg.AUDIO_DEVICE],
+                        stdin=esp.stdout,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                        env=env,
+                    )
+                    esp.stdout.close()
+                    esp.wait(timeout=12)
+                    aplay.wait(timeout=10)
+                    return
+                except FileNotFoundError:
+                    continue
+                except Exception as e:
+                    log.warning("MBROLA TTS Fehler: %s", e)
+                    break
+            # Fallback: plain espeak-ng
             for exe in ("espeak-ng", "espeak"):
                 try:
                     subprocess.run(
@@ -168,6 +196,7 @@ class Scanner:
                     log.warning("TTS Fehler: %s", e)
                     return
             log.warning("TTS: espeak-ng/espeak nicht gefunden")
+
         threading.Thread(target=_run, daemon=True, name="tts").start()
 
     def _run_hotspot_setup(self):
@@ -395,7 +424,7 @@ class Scanner:
             self._speak_channel()
 
         elif t == ButtonEvent.MEMORY_LONG:
-            self._save_to_bank()
+            self.state = ScannerState.BANK_SELECT
 
         elif t == ButtonEvent.SQ_UP:
             self.squelch.increase()
