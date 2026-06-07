@@ -172,3 +172,21 @@ Oder nach dem ersten Start in der Web-UI unter **WLAN-Hotspot → Einstellungen*
 
 Die `firstrun.sh` und der `systemd.run`-Eintrag in `cmdline.txt` werden automatisch entfernt.
 Beim nächsten Neustart bootet der Pi normal und startet direkt den Scanner.
+
+---
+
+## Hinweis zur KI-Unterstützung
+
+Diese Software wurde vollständig mithilfe von Claude (einem KI-Assistenten von Anthropic) entwickelt. Der Autor hat die Anforderungen definiert, Entscheidungen getroffen und das Ergebnis geprüft — der Code selbst wurde durch den Dialog mit der KI generiert.
+
+---
+
+## Haftungsausschluss
+
+Die Software wird so bereitgestellt, wie sie ist (as-is), ohne jegliche Garantie auf Korrektheit, Vollständigkeit oder Eignung für einen bestimmten Zweck. Der Autor übernimmt keinerlei Haftung für Schäden, Datenverluste oder sonstige Probleme, die durch die Verwendung dieser Software entstehen. Die Nutzung erfolgt auf eigene Verantwortung.
+
+---
+
+## Lizenz
+
+[CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/) — Namensnennung erforderlich, keine kommerzielle Nutzung.
