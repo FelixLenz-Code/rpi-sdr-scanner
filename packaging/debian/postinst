@@ -31,6 +31,10 @@ EOF
             done
         fi
 
+        # ── Datenverzeichnis anlegen (bookmarks.db, WorkingDirectory) ────────
+        mkdir -p /var/lib/sdr-scanner
+        chown pi:pi /var/lib/sdr-scanner
+
         # ── /usr/bin/sdr-scanner Wrapper ───────────────────────────────────
         ln -sf "${INSTALL_DIR}/start_scanner.sh" /usr/bin/sdr-scanner
 
