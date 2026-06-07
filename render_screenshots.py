@@ -121,7 +121,7 @@ print(f"Rendere nach {OUT_DIR}/")
 
 # 1. IDLE – kein Signal
 ui = make_ui(MockScanner())
-render(ui, pg, "idle.png")
+render(ui, pg, "idle_v2.png")
 
 # 2. ACTIVE – Signal empfangen
 ui = make_ui(MockScanner({
@@ -131,7 +131,7 @@ ui = make_ui(MockScanner({
     "rssi":        -38.0,
     "signal_bar":  4,
 }))
-render(ui, pg, "active.png")
+render(ui, pg, "active_v2.png")
 
 # 3. SCANNING – läuft durch
 ui = make_ui(MockScanner({
@@ -169,7 +169,7 @@ ui = make_ui(MockScanner({
     "bt_connected": True,
     "bt_name":     "JBL Flip 6",
 }))
-render(ui, pg, "active_bt.png")
+render(ui, pg, "active_bt_v2.png")
 
 pg.quit()
 print("Fertig.")
