@@ -225,6 +225,13 @@ class Demodulator:
                 if self._running:
                     log.error("IQ-Lesefehler: %s", e)
                     self.dongle_ok = False
+                    # sdr freigeben damit start() _open_device() aufruft statt
+                    # nur _retune_needed zu setzen (den niemand mehr liest)
+                    self._sdr = None
+                    try:
+                        sdr.close()
+                    except Exception:
+                        pass
                     if self._on_unexpected_exit:
                         self._on_unexpected_exit()
                     time.sleep(0.5)
@@ -256,6 +263,11 @@ class Demodulator:
                     if self._running:
                         log.error("Retune auf %d Hz fehlgeschlagen: %s", retune_freq, e)
                         self.dongle_ok = False
+                        self._sdr = None
+                        try:
+                            sdr.close()
+                        except Exception:
+                            pass
                         if self._on_unexpected_exit:
                             self._on_unexpected_exit()
                     break
