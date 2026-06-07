@@ -27,9 +27,8 @@ _CALLSIGN_RE = re.compile(r'^[A-Z]{1,2}\d[A-Z]{1,3}$')
 
 
 def _tts_prepare(name: str) -> str:
-    """Wandelt Rufzeichen in NATO-Alphabet um, gibt sonst den Namen unverändert zurück."""
+    """Wandelt Rufzeichen in NATO-Phonetik um, gibt sonst den Namen unverändert zurück."""
     upper = name.strip().upper()
-    # Nur den Rufzeichen-Teil erkennen (ggf. Kanal hat Suffix wie "DB0VA Relais")
     token = upper.split()[0] if upper else upper
     if _CALLSIGN_RE.match(token):
         return ' '.join(_NATO.get(c, c) for c in token)
@@ -177,26 +176,76 @@ class Scanner:
         text = _tts_prepare(ch.name)
 
         def _run():
+            import tempfile
             uid = os.getuid()
             env = {**os.environ,
                    "XDG_RUNTIME_DIR":    f"/run/user/{uid}",
                    "PULSE_RUNTIME_PATH": f"/run/user/{uid}/pulse"}
-            # MBROLA English: natürlicher als plain espeak, schnell genug für Pi 3B+
-            for voice in ("mb-en1", "mb-us1", "mb-us2", "mb-us3"):
+
+            # 1. pico2wave (SVOX Pico) – natürlichste Stimme, ~1.3s
+            try:
+                with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
+                    tmp = f.name
+                try:
+                    r = subprocess.run(
+                        ["pico2wave", "-l", "en-US", "-w", tmp, "--", text],
+                        timeout=8, capture_output=True, env=env,
+                    )
+                    if r.returncode == 0:
+                        subprocess.run(
+                            ["aplay", "-D", "pulse", tmp],
+                            timeout=10, capture_output=True, env=env,
+                        )
+                        return
+                finally:
+                    try:
+                        os.unlink(tmp)
+                    except OSError:
+                        pass
+            except FileNotFoundError:
+                pass
+            except Exception as e:
+                log.warning("pico2wave TTS Fehler: %s", e)
+
+            # 2. RHVoice – sehr schnell (~500 ms), gute Qualität
+            try:
+                rhv = subprocess.Popen(
+                    ["RHVoice-client", "-s", "en", "-f", "16000"],
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.DEVNULL,
+                    env=env,
+                )
+                aplay = subprocess.Popen(
+                    ["aplay", "-r", "16000", "-f", "S16_LE", "-c", "1", "-D", "pulse"],
+                    stdin=rhv.stdout,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    env=env,
+                )
+                rhv.stdout.close()
+                rhv.stdin.write(text.encode("utf-8"))
+                rhv.stdin.close()
+                rhv.wait(timeout=10)
+                aplay.wait(timeout=10)
+                return
+            except FileNotFoundError:
+                pass
+            except Exception as e:
+                log.warning("RHVoice TTS Fehler: %s", e)
+
+            # 3. MBROLA Fallback
+            for voice in ("mb-en1", "mb-us1"):
                 try:
                     esp = subprocess.Popen(
                         ["espeak-ng", "-v", voice, "-s", "140", "-a", "180",
                          "--stdout", "--", text],
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.DEVNULL,
-                        env=env,
+                        stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, env=env,
                     )
                     aplay = subprocess.Popen(
-                        ["aplay", "-D", cfg.AUDIO_DEVICE],
-                        stdin=esp.stdout,
-                        stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL,
-                        env=env,
+                        ["aplay", "-D", "pulse"],
+                        stdin=esp.stdout, stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL, env=env,
                     )
                     esp.stdout.close()
                     esp.wait(timeout=12)
@@ -205,9 +254,10 @@ class Scanner:
                 except FileNotFoundError:
                     continue
                 except Exception as e:
-                    log.warning("MBROLA TTS Fehler (%s): %s", voice, e)
+                    log.warning("MBROLA TTS Fehler: %s", e)
                     break
-            # Fallback: plain English espeak-ng
+
+            # 4. Plain espeak-ng
             for exe in ("espeak-ng", "espeak"):
                 try:
                     subprocess.run(
@@ -220,7 +270,7 @@ class Scanner:
                 except Exception as e:
                     log.warning("TTS Fehler: %s", e)
                     return
-            log.warning("TTS: espeak-ng/espeak nicht gefunden")
+            log.warning("TTS: kein TTS-Backend gefunden")
 
         threading.Thread(target=_run, daemon=True, name="tts").start()
 
