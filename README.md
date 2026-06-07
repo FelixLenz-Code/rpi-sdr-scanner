@@ -36,8 +36,24 @@ Kompakter Tischscanner auf Basis eines Raspberry Pi, eines RTL-SDR-Dongles und e
 
 ## Screenshots
 
+| Boot-Splash | Bereit (IDLE) |
+|:-----------:|:-------------:|
+| ![Boot-Splash](docs/screenshots/boot_splash.png) | ![IDLE](docs/screenshots/idle.png) |
+
+| Scan läuft | Signal empfangen |
+|:----------:|:----------------:|
+| ![Scanning](docs/screenshots/scanning.png) | ![Active](docs/screenshots/active.png) |
+
+| Menü | Bank-Auswahl |
+|:----:|:------------:|
+| ![Menü](docs/screenshots/menu.png) | ![Bank Select](docs/screenshots/bank_select.png) |
+
+| Empfang mit Bluetooth-Lautsprecher |
+|:----------------------------------:|
+| ![Active BT](docs/screenshots/active_bt.png) |
+
 ![Web-UI – Bank 1: FM Repeater](docs/screenshots/webui_bank1_fm_repeater.png)
-*Web-Oberfläche mit Memory-Bank 1 „FM Repeater" (erreichbar über WLAN-Hotspot)*
+*Web-Oberfläche (erreichbar über WLAN-Hotspot)*
 
 ---
 
