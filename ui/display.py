@@ -369,6 +369,18 @@ class DisplayUI:
             pg.draw.circle(scr, WARN, (cx, cy + 18), 6, 1)
             self._text("SDR", "small", (cx + 11, cy + 18), WARN, anchor="ml")
 
+        # Hotspot-Status unter SDR
+        WIFI_COL = (80, 220, 120)
+        if s.get("hotspot_busy"):
+            pg.draw.circle(scr, (255, 200, 0), (cx, cy + 36), 6, 1)
+            self._text("AP", "small", (cx + 11, cy + 36), (255, 200, 0), anchor="ml")
+        elif s.get("hotspot_on"):
+            pg.draw.circle(scr, WIFI_COL, (cx, cy + 36), 6)
+            self._text("AP", "small", (cx + 11, cy + 36), WIFI_COL, anchor="ml")
+        else:
+            pg.draw.circle(scr, DIM, (cx, cy + 36), 6, 1)
+            self._text("AP", "small", (cx + 11, cy + 36), DIM, anchor="ml")
+
         # ── Aktiv-Rahmen wenn Signal ──────────────────────────────────────
         if s["state"] == "ACTIVE":
             pg.draw.rect(scr, ACTIVE, (0, 0, W, H), 3)
