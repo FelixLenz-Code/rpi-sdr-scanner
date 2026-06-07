@@ -120,6 +120,7 @@ class Scanner:
 
     def start(self):
         log.info("Scanner startet")
+        self._started = True
         self.audio.start()
         self.banks.set_active_bank(0)
         self._load_active_bank()          # lädt B0 (ruft intern _tune_current auf)
@@ -296,7 +297,8 @@ class Scanner:
         self.on_state_change()
 
     def run(self):
-        self.start()
+        if not getattr(self, '_started', False):
+            self.start()
         try:
             while True:
                 try:

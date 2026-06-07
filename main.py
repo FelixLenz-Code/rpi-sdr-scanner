@@ -5,6 +5,7 @@ import argparse
 import logging
 import signal
 import sys
+import time
 import threading
 
 # ── Logging konfigurieren ─────────────────────────────────────────────────────
@@ -80,6 +81,15 @@ def main():
         web = WebUI(scanner)
         web.start()
         log.info("Web-UI gestartet")
+
+    # ── Scanner starten ───────────────────────────────────────────────────────
+    scanner.start()
+    if display:
+        display.boot_done()
+    try:
+        open("/tmp/sdr-scanner-ready", "w").close()
+    except OSError:
+        pass
 
     # ── Scanner-Loop im Hauptthread ───────────────────────────────────────────
     # SIGTERM (von systemd/kill) in KeyboardInterrupt umwandeln, damit

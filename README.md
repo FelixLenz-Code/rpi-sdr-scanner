@@ -1,6 +1,6 @@
 # RPi SDR Scanner
 
-Kompakter Tischscanner im **1-DIN Autoradio-Format** auf Basis eines Raspberry Pi, eines RTL-SDR-Dongles und einem 3,5"-SPI-Touchscreen. Vorkonfigurierte Kanäle scannen, Memory-Bänke verwalten, manuell abstimmen — steuerbar über physische Tasten, einen Drehgeber oder ein Web-Interface per WLAN-Hotspot. Audio wahlweise über den lokalen 3,5-mm-Ausgang oder einen **Bluetooth-A2DP-Lautsprecher**.
+Kompakter Tischscanner auf Basis eines Raspberry Pi, eines RTL-SDR-Dongles und einem 3,5"-SPI-Touchscreen. Vorkonfigurierte Kanäle scannen, Memory-Bänke verwalten, manuell abstimmen — steuerbar über physische Tasten, einen Drehgeber oder ein Web-Interface per WLAN-Hotspot. Audio wahlweise über den lokalen 3,5-mm-Ausgang oder einen **Bluetooth-A2DP-Lautsprecher**.
 
 ---
 

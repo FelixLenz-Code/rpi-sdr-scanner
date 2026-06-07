@@ -1,16 +1,11 @@
 [Unit]
 Description=SDR Scanner Boot-Splash
 After=local-fs.target
-Before=sdr_scanner.service
 DefaultDependencies=no
 
 [Service]
-Type=oneshot
+Type=simple
 User=pi
-Environment=SDL_VIDEODRIVER=fbcon
-Environment=SDL_FBDEV=/dev/fb1
-Environment=SDL_NOMOUSE=1
-ExecStartPre=/bin/bash -c 'for i in $(seq 1 20); do [ -e /dev/fb1 ] && exit 0; sleep 0.2; done; exit 1'
 ExecStart=/usr/bin/python3 /usr/share/sdr-scanner/splash.py
 RemainAfterExit=no
 

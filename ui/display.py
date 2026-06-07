@@ -73,6 +73,12 @@ class DisplayUI:
         self._bt_paired_selected = None      # Gerät in PAIRED_DETAIL
         self._bt_detail_cursor   = 0         # 0=Verbinden, 1=Entfernen
 
+        # Boot-Ladescreen
+        self._booting        = True
+        self._boot_progress  = 0.0
+        self._boot_label     = "Starte..."
+        self._boot_t         = 0.0   # animierter Zeitwert
+
         # Skalierungsfaktor: Verhältnis HDMI-Auflösung zu SPI-Auflösung (480×320)
         # Im HDMI-Modus werden alle Koordinaten mit diesem Faktor multipliziert.
         if hdmi:
@@ -97,6 +103,13 @@ class DisplayUI:
             target=self._run, daemon=True, name="display"
         )
         self._thread.start()
+
+    def set_boot_progress(self, progress: float, label: str = ""):
+        self._boot_progress = progress
+        self._boot_label    = label
+
+    def boot_done(self):
+        self._booting = False
 
     def stop(self):
         self._running = False
@@ -260,11 +273,14 @@ class DisplayUI:
     def _draw(self, surface=None):
         if not self._fonts or self._screen is None:
             return
-        s = self._scanner.status_dict()
         scr_orig = self._screen
         if surface is not None:
-            self._screen = surface   # Temporär auf Canvas umleiten
+            self._screen = surface
         try:
+            if self._booting:
+                self._draw_boot_screen()
+                return
+            s = self._scanner.status_dict()
             self._screen.fill(BG)
             self._draw_main(s)
 
@@ -292,6 +308,45 @@ class DisplayUI:
         finally:
             if surface is not None:
                 self._screen = scr_orig   # Screen zurücksetzen
+
+    def _draw_boot_screen(self):
+        import math
+        pg  = self._pg
+        scr = self._screen
+        self._boot_t += 1.0 / cfg.DISPLAY_FPS
+
+        scr.fill(BG)
+
+        for x in range(0, W, 40):
+            pg.draw.line(scr, DIM, (x, 0), (x, H), 1)
+        for y in range(0, H, 40):
+            pg.draw.line(scr, DIM, (0, y), (W, y), 1)
+
+        pg.draw.rect(scr, PRIMARY, (0, 0, W, 3))
+
+        pts = []
+        cx, cy = W // 2, 90
+        for i in range(80):
+            x = cx - 39 + i
+            phase = (i / 79.0) * math.pi * 4 - self._boot_t * 3
+            amp   = 13 * math.sin(phase) * math.exp(-((i - 39) ** 2) / (2 * 25 ** 2))
+            pts.append((x, int(cy + amp)))
+        if len(pts) > 1:
+            pg.draw.lines(scr, PRIMARY, False, pts, 2)
+
+        f_big   = self._fonts.get("freq") or self._fonts.get("big")
+        f_small = self._fonts.get("small")
+        t1 = f_big.render("SDR",     True, PRIMARY)
+        t2 = f_big.render("Scanner", True, TEXT)
+        x1 = W // 2 - (t1.get_width() + t2.get_width() + 10) // 2
+        scr.blit(t1, (x1, 108))
+        scr.blit(t2, (x1 + t1.get_width() + 10, 108))
+
+        dot_count = int(self._boot_t * 2) % 4
+        lbl = f_small.render("Starte" + "." * dot_count, True, MUTED)
+        scr.blit(lbl, (W // 2 - lbl.get_width() // 2, 210))
+
+        pg.draw.rect(scr, DIM, (0, H - 3, W, 3))
 
     # ═════════════════════════════════════════════════════════════════════════
     #  HAUPTANSICHT  (immer sichtbar, auch unter Overlays)
