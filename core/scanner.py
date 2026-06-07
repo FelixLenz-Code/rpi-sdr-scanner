@@ -232,6 +232,7 @@ class Scanner:
             if self.demod.dongle_ok and self._retry_count > 0:
                 log.info("SDR-Dongle wieder verbunden (nach %d Versuchen)", self._retry_count)
                 self._retry_count = 0
+                self.audio.play_jingle([(880, 0.12), (1320, 0.18)])
                 if self.state == ScannerState.SCANNING:
                     self._begin_scan()
             # dongle_ok False→True immer broadcasten (z.B. nach Kalibrierung)

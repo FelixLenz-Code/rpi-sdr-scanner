@@ -320,17 +320,21 @@ class AudioPipeline:
                 except BrokenPipeError:
                     break
 
-    # ── Signalton ─────────────────────────────────────────────────────────────
+    # ── Signaltöne ────────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _render_tone(freq_hz: int, duration_s: float, amplitude: float) -> bytes:
+        n    = int(cfg.AUDIO_RATE * duration_s)
+        t    = np.linspace(0, duration_s, n, endpoint=False, dtype=np.float32)
+        tone = np.sin(2 * np.pi * freq_hz * t)
+        fade = min(int(cfg.AUDIO_RATE * 0.015), n // 4)
+        tone[:fade]  *= np.linspace(0.0, 1.0, fade, dtype=np.float32)
+        tone[-fade:] *= np.linspace(1.0, 0.0, fade, dtype=np.float32)
+        return np.clip(tone * amplitude * 32767, -32768, 32767).astype(np.int16).tobytes()
 
     def play_beep(self, freq_hz: int = 880, duration_s: float = 0.25, amplitude: float = 0.4):
         def _run():
-            n = int(cfg.AUDIO_RATE * duration_s)
-            t = np.linspace(0, duration_s, n, endpoint=False, dtype=np.float32)
-            tone = np.sin(2 * np.pi * freq_hz * t)
-            fade = min(int(cfg.AUDIO_RATE * 0.015), n // 4)
-            tone[:fade]  *= np.linspace(0.0, 1.0, fade, dtype=np.float32)
-            tone[-fade:] *= np.linspace(1.0, 0.0, fade, dtype=np.float32)
-            pcm = np.clip(tone * amplitude * 32767, -32768, 32767).astype(np.int16).tobytes()
+            pcm = self._render_tone(freq_hz, duration_s, amplitude)
             try:
                 proc = subprocess.Popen(
                     ["aplay", "-r", str(cfg.AUDIO_RATE), "-f", "S16_LE",
@@ -343,6 +347,23 @@ class AudioPipeline:
             except Exception as e:
                 log.debug("play_beep Fehler: %s", e)
         threading.Thread(target=_run, daemon=True, name="beep").start()
+
+    def play_jingle(self, tones: list[tuple[int, float]], amplitude: float = 0.4):
+        """Spielt eine Folge von (freq_hz, duration_s)-Tupeln nacheinander."""
+        def _run():
+            pcm = b"".join(self._render_tone(f, d, amplitude) for f, d in tones)
+            try:
+                proc = subprocess.Popen(
+                    ["aplay", "-r", str(cfg.AUDIO_RATE), "-f", "S16_LE",
+                     "-c", "1", "-D", cfg.AUDIO_DEVICE, "-"],
+                    stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                )
+                proc.stdin.write(pcm)
+                proc.stdin.close()
+                proc.wait(timeout=4)
+            except Exception as e:
+                log.debug("play_jingle Fehler: %s", e)
+        threading.Thread(target=_run, daemon=True, name="jingle").start()
 
     # ── Lautstärke ───────────────────────────────────────────────────────────
 
