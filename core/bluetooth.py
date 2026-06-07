@@ -377,11 +377,22 @@ class BluetoothManager:
     # ── PulseAudio ────────────────────────────────────────────────────────────
 
     @staticmethod
+    def _pa_env() -> dict:
+        """Stellt sicher dass pactl den richtigen PulseAudio-Socket findet."""
+        import os
+        env = os.environ.copy()
+        uid = os.getuid()
+        env.setdefault('XDG_RUNTIME_DIR', f'/run/user/{uid}')
+        env.setdefault('PULSE_RUNTIME_PATH', f'/run/user/{uid}/pulse')
+        return env
+
+    @staticmethod
     def _find_pa_sink(address: str) -> str | None:
         normalized = address.replace(':', '_').lower()
         try:
             out = subprocess.check_output(
-                ['pactl', 'list', 'sinks', 'short'], text=True, timeout=5
+                ['pactl', 'list', 'sinks', 'short'], text=True, timeout=5,
+                env=BluetoothManager._pa_env()
             )
             for line in out.splitlines():
                 if normalized in line.lower():
@@ -392,37 +403,41 @@ class BluetoothManager:
 
     @staticmethod
     def _set_pa_sink(sink: str) -> None:
+        env = BluetoothManager._pa_env()
         try:
             subprocess.run(['pactl', 'set-default-sink', sink],
-                           check=True, timeout=5)
+                           check=True, timeout=5, env=env)
             out = subprocess.check_output(
-                ['pactl', 'list', 'sink-inputs', 'short'], text=True, timeout=5
+                ['pactl', 'list', 'sink-inputs', 'short'], text=True, timeout=5, env=env
             )
             for line in out.splitlines():
                 idx = line.split('\t')[0].strip()
                 if idx.isdigit():
-                    subprocess.run(['pactl', 'move-sink-input', idx, sink], timeout=5)
+                    subprocess.run(['pactl', 'move-sink-input', idx, sink],
+                                   timeout=5, env=env)
         except Exception as e:
             log.warning("_set_pa_sink: %s", e)
 
     @staticmethod
     def _restore_default_sink() -> None:
+        env = BluetoothManager._pa_env()
         try:
             out = subprocess.check_output(
-                ['pactl', 'list', 'sinks', 'short'], text=True, timeout=5
+                ['pactl', 'list', 'sinks', 'short'], text=True, timeout=5, env=env
             )
             for line in out.splitlines():
                 if 'bluez' not in line.lower():
                     sink = line.split('\t')[1]
                     subprocess.run(['pactl', 'set-default-sink', sink],
-                                   check=True, timeout=5)
+                                   check=True, timeout=5, env=env)
                     out2 = subprocess.check_output(
-                        ['pactl', 'list', 'sink-inputs', 'short'], text=True, timeout=5
+                        ['pactl', 'list', 'sink-inputs', 'short'], text=True, timeout=5, env=env
                     )
                     for l2 in out2.splitlines():
                         idx = l2.split('\t')[0].strip()
                         if idx.isdigit():
-                            subprocess.run(['pactl', 'move-sink-input', idx, sink], timeout=5)
+                            subprocess.run(['pactl', 'move-sink-input', idx, sink],
+                                           timeout=5, env=env)
                     return
         except Exception as e:
             log.warning("_restore_default_sink: %s", e)

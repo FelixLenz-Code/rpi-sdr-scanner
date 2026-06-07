@@ -24,8 +24,11 @@ hciconfig hci1 up 2>/dev/null || hciconfig hci0 up 2>/dev/null || true
 export XDG_RUNTIME_DIR=/run/user/$(id -u)
 export PULSE_RUNTIME_PATH="${XDG_RUNTIME_DIR}/pulse"
 
-# PA starten wenn der Socket noch nicht existiert (z.B. kein Login-Desktop)
+# PA starten / reparieren (stale Socket → kill + restart)
 if ! pactl info >/dev/null 2>&1; then
+    pulseaudio --kill 2>/dev/null || true
+    rm -f "${PULSE_RUNTIME_PATH}/native" "${PULSE_RUNTIME_PATH}/pid" 2>/dev/null
+    sleep 0.3
     pulseaudio --start --daemonize=yes --exit-idle-time=-1 2>/dev/null || true
     sleep 1
 fi
