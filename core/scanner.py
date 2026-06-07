@@ -96,7 +96,6 @@ class Scanner:
         self._dongle_retry_at: float = time.monotonic() + 3.0  # erste Prüfung nach 3 s
         self._dongle_was_ok: bool = False  # für Verbindungsverlust-Erkennung
         self._retry_count: int = 0
-        self._demod_wanted: bool = False  # False = Demodulator absichtlich inaktiv (Startmodus)
         self._loaded_bank: Optional[int] = None  # welche Bank liegt im FrequencyManager
         self.agc_enabled: bool  = True   # True = rtl_fm -g auto, False = cfg.RTL_GAIN
         self.enc_vol_mode: bool = False  # False = Encoder dreht Kanal, True = Lautstärke
@@ -124,8 +123,9 @@ class Scanner:
         log.info("Scanner startet")
         self.audio.start()
         self.banks.set_active_bank(0)
-        self._load_active_bank(start_demod=False)
-        self.demod.close()  # RTL-SDR schließen; _demod_wanted=False hält Watchdog zurück
+        self._load_active_bank()          # lädt B0 (ruft intern _tune_current auf)
+        if self._loaded_bank is None:     # B0 leer → Fallback auf cfg.CHANNELS
+            self._tune_current()
         log.info("Bereit – %d Kanäle, Bank %d ('%s')",
                  len(self.freq), self.banks.active_bank, self.banks.active_bank_name)
         threading.Thread(target=self._bt_watchdog, daemon=True, name="bt-watchdog").start()
@@ -344,7 +344,7 @@ class Scanner:
             self._tune_current()
 
         # Dongle-Watchdog: Wiederverbindung mit exponentiellem Backoff
-        if not self.demod.dongle_ok and not self.debug and self._demod_wanted:
+        if not self.demod.dongle_ok and not self.debug:
             if self._dongle_was_ok:
                 self._dongle_was_ok = False
                 log.warning("SDR-Dongle getrennt – Hinweiston")
@@ -594,7 +594,7 @@ class Scanner:
                                   bandwidth=ch.bandwidth)
         log.info("In Bank %d gespeichert: %s", self.banks.active_bank, mem_ch)
 
-    def _load_active_bank(self, start_demod: bool = True):
+    def _load_active_bank(self):
         """Lädt alle Kanäle der aktiven Bank in den FrequencyManager."""
         channels = self.banks.list_bank()
         if not channels:
@@ -614,8 +614,7 @@ class Scanner:
                 bandwidth=mem_ch.bandwidth,
             ))
         self._loaded_bank = self.banks.active_bank
-        if start_demod:
-            self._tune_current()
+        self._tune_current()
         log.info("Bank %d geladen: %d Kanäle", self.banks.active_bank, len(self.freq))
 
     def _bt_on_disconnect(self) -> None:
@@ -639,8 +638,7 @@ class Scanner:
             self._begin_scan()
 
     def _begin_scan(self):
-        self._demod_wanted = True
-        self._needs_retune = False
+        self._needs_retune = False   # pendenden Encoder-Retune verwerfen
         self.state = ScannerState.SCANNING
         self._schedule_next_channel()
 

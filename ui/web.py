@@ -1068,7 +1068,6 @@ class WebUI:
 
         @app.route("/tune/<int:index>", methods=["POST"])
         def tune(index):
-            self._scanner._demod_wanted = True
             self._scanner.freq.select(index)
             self._scanner._tune_current()
             self._scanner.on_state_change()
@@ -1105,7 +1104,6 @@ class WebUI:
                          gain=gain, squelch=squelch, bandwidth=bandwidth, is_temp=True)
             chs.insert(0, ch)
             self._scanner.freq.select(0)
-            self._scanner._demod_wanted = True
             self._scanner._tune_current()
             self._scanner.on_state_change()
             return "", 204
