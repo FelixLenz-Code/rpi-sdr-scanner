@@ -495,9 +495,10 @@ EOF
 
   sudo systemctl daemon-reload
   sudo systemctl unmask hostapd 2>/dev/null || true
-  sudo systemctl enable sdr_hotspot
-  sudo systemctl enable hostapd
-  sudo systemctl enable dnsmasq
+  sudo systemctl unmask dnsmasq 2>/dev/null || true
+  sudo systemctl disable sdr_hotspot 2>/dev/null || true
+  sudo systemctl disable hostapd 2>/dev/null || true
+  sudo systemctl disable dnsmasq 2>/dev/null || true
 
   ok "Hotspot konfiguriert: SSID='${HOTSPOT_SSID}'"
   info "Erreichbar nach Reboot unter: http://${HOTSPOT_IP}:5000 oder http://scanner.local"
@@ -516,8 +517,7 @@ if $OPT_SERVICE; then
   sudo tee "$SERVICE_FILE" > /dev/null << EOF
 [Unit]
 Description=RPi SDR Tischscanner
-After=network.target sound.target sdr_hotspot.service
-Wants=sdr_hotspot.service
+After=network.target sound.target
 
 [Service]
 Type=simple

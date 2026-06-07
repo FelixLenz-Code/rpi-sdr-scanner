@@ -139,11 +139,12 @@ if command -v iptables-save > /dev/null; then
         warn "iptables-Regeln konnten nicht gespeichert werden"
 fi
 
-# ── systemd-Dienste aktivieren ────────────────────────────────────────────────
-info "Aktiviere systemd-Dienste..."
-systemctl unmask hostapd
-systemctl enable hostapd
-systemctl enable dnsmasq
+# ── systemd-Dienste vorbereiten (nicht auto-starten) ─────────────────────────
+info "Vorbereite systemd-Dienste (kein Autostart)..."
+systemctl unmask hostapd 2>/dev/null || true
+systemctl unmask dnsmasq 2>/dev/null || true
+systemctl disable hostapd 2>/dev/null || true
+systemctl disable dnsmasq 2>/dev/null || true
 
 # ── sdr_hotspot.service schreiben ─────────────────────────────────────────────
 info "Schreibe sdr_hotspot.service..."
@@ -164,7 +165,7 @@ WantedBy=multi-user.target
 SERVICE_EOF
 
 systemctl daemon-reload
-systemctl enable sdr_hotspot
+systemctl disable sdr_hotspot 2>/dev/null || true
 
 # ── sdr_scanner.service: Web-UI erzwingen ─────────────────────────────────────
 info "Aktiviere Web-UI im Scanner-Service..."
