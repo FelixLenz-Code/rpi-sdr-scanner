@@ -2,6 +2,7 @@
 
 import os
 import queue
+import re
 import subprocess
 import time
 import threading
@@ -9,6 +10,30 @@ import logging
 from threading import Lock
 from enum import Enum, auto
 from typing import Optional
+
+# NATO-Phonetik-Alphabet für Amateurfunk-Rufzeichen
+_NATO: dict[str, str] = {
+    'A': 'Alpha',   'B': 'Bravo',    'C': 'Charlie', 'D': 'Delta',   'E': 'Echo',
+    'F': 'Foxtrot', 'G': 'Golf',     'H': 'Hotel',   'I': 'India',   'J': 'Juliet',
+    'K': 'Kilo',    'L': 'Lima',     'M': 'Mike',    'N': 'November','O': 'Oscar',
+    'P': 'Papa',    'Q': 'Quebec',   'R': 'Romeo',   'S': 'Sierra',  'T': 'Tango',
+    'U': 'Uniform', 'V': 'Victor',   'W': 'Whiskey', 'X': 'X-ray',   'Y': 'Yankee',
+    'Z': 'Zulu',
+    '0': 'Zero', '1': 'One', '2': 'Two',   '3': 'Three', '4': 'Four',
+    '5': 'Five', '6': 'Six', '7': 'Seven', '8': 'Eight', '9': 'Niner',
+}
+# Amateurfunk-Rufzeichen: 1-2 Buchstaben Präfix + Ziffer + 1-3 Buchstaben Suffix
+_CALLSIGN_RE = re.compile(r'^[A-Z]{1,2}\d[A-Z]{1,3}$')
+
+
+def _tts_prepare(name: str) -> str:
+    """Wandelt Rufzeichen in NATO-Alphabet um, gibt sonst den Namen unverändert zurück."""
+    upper = name.strip().upper()
+    # Nur den Rufzeichen-Teil erkennen (ggf. Kanal hat Suffix wie "DB0VA Relais")
+    token = upper.split()[0] if upper else upper
+    if _CALLSIGN_RE.match(token):
+        return ' '.join(_NATO.get(c, c) for c in token)
+    return name
 
 # Wartezeiten zwischen Dongle-Wiederverbindungsversuchen (Sekunden)
 _RETRY_INTERVALS = (0.3, 1.0, 2.0, 5.0, 10.0, 30.0)
@@ -149,15 +174,15 @@ class Scanner:
         ch = self.freq.current
         if not ch or self.debug:
             return
-        text = ch.name
+        text = _tts_prepare(ch.name)
 
         def _run():
             uid = os.getuid()
             env = {**os.environ,
                    "XDG_RUNTIME_DIR":    f"/run/user/{uid}",
                    "PULSE_RUNTIME_PATH": f"/run/user/{uid}/pulse"}
-            # MBROLA: deutlich natürlicher als plain espeak-ng, fast genug für Pi 3B+
-            for voice in ("mb-de6", "mb-de7", "mb-de8"):
+            # MBROLA English: natürlicher als plain espeak, schnell genug für Pi 3B+
+            for voice in ("mb-en1", "mb-us1", "mb-us2", "mb-us3"):
                 try:
                     esp = subprocess.Popen(
                         ["espeak-ng", "-v", voice, "-s", "140", "-a", "180",
@@ -180,13 +205,13 @@ class Scanner:
                 except FileNotFoundError:
                     continue
                 except Exception as e:
-                    log.warning("MBROLA TTS Fehler: %s", e)
+                    log.warning("MBROLA TTS Fehler (%s): %s", voice, e)
                     break
-            # Fallback: plain espeak-ng
+            # Fallback: plain English espeak-ng
             for exe in ("espeak-ng", "espeak"):
                 try:
                     subprocess.run(
-                        [exe, "-v", "de", "-s", "130", "-a", "150", "--", text],
+                        [exe, "-v", "en", "-s", "140", "-a", "150", "--", text],
                         timeout=6, capture_output=True, env=env,
                     )
                     return

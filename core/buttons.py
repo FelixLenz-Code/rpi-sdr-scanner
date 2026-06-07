@@ -131,12 +131,39 @@ class ButtonHandler:
 
             btn_mode.when_held     = _on_mode_held
             btn_mode.when_released = _on_mode_released
-            btn_mem.when_pressed     = lambda: self._push(ButtonEvent.MEMORY)
-            btn_mem.when_held        = lambda: self._push(ButtonEvent.MEMORY_LONG)
+
+            # MEM: kurzer Druck → TTS, langer Druck → Bank-Select
+            _mem_held = [False]
+
+            def _on_mem_held():
+                _mem_held[0] = True
+                self._push(ButtonEvent.MEMORY_LONG)
+
+            def _on_mem_released():
+                if not _mem_held[0]:
+                    self._push(ButtonEvent.MEMORY)
+                _mem_held[0] = False
+
+            btn_mem.when_held     = _on_mem_held
+            btn_mem.when_released = _on_mem_released
+
             btn_sq_up.when_pressed   = lambda: self._push(ButtonEvent.SQ_UP)
             btn_sq_dn.when_pressed   = lambda: self._push(ButtonEvent.SQ_DOWN)
-            btn_enc_sw.when_pressed  = lambda: self._push(ButtonEvent.ENC_PRESS)
-            btn_enc_sw.when_held     = lambda: self._push(ButtonEvent.MENU)
+
+            # ENC_SW: kurzer Druck → ENC_PRESS (Scan toggle), langer Druck → MENU
+            _enc_held = [False]
+
+            def _on_enc_held():
+                _enc_held[0] = True
+                self._push(ButtonEvent.MENU)
+
+            def _on_enc_released():
+                if not _enc_held[0]:
+                    self._push(ButtonEvent.ENC_PRESS)
+                _enc_held[0] = False
+
+            btn_enc_sw.when_held     = _on_enc_held
+            btn_enc_sw.when_released = _on_enc_released
 
             self._encoder = _LgpioEncoder(
                 cfg.GPIO_ENC_A, cfg.GPIO_ENC_B,

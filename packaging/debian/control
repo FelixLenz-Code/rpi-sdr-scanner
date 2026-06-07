@@ -23,4 +23,4 @@ Depends: python3 (>= 3.10),
  iptables,
  espeak-ng,
  mbrola,
- mbrola-de6
+ mbrola-en1
