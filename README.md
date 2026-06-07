@@ -70,8 +70,7 @@ sdr_scanner/
 │   ├── setup_hotspot.sh     # Hotspot einrichten (von postinst und install.sh gerufen)
 │   ├── hotspot_start.sh     # Von systemd beim Boot aufgerufen
 │   ├── hotspot_stop.sh
-│   ├── change_wifi.sh       # SSID/Passwort per CLI ändern
-│   └── fix_fstrim.sh        # Behebt fstrim-Boot-Hänger auf SD-Karten
+│   └── change_wifi.sh       # SSID/Passwort per CLI ändern
 ```
 
 ---
@@ -304,11 +303,6 @@ sudo bash hotspot/change_wifi.sh "MeinScanner" "neuespasswort"
 ---
 
 ## Bekannte Probleme
-
-**fstrim hängt den Boot** — SD-Karten implementieren TRIM oft fehlerhaft. Wird von `install.sh` automatisch behoben, oder manuell:
-```bash
-sudo bash hotspot/fix_fstrim.sh
-```
 
 **`kalibrate-rtl` nicht gefunden** — das Paket heißt je nach OS-Version `kalibrate-rtl` oder `kalibrate`. `install.sh` probiert beide.
 
