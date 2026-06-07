@@ -239,7 +239,7 @@ td.name-cell:hover{color:var(--pri)}
   <div class="card">
     <div class="card-head">
       <span>WLAN-Hotspot</span>
-      <span id="hotspot-status" style="font-size:11px;padding:2px 7px;border-radius:99px;background:var(--act);color:#000">aktiv</span>
+      <span id="hotspot-status" style="font-size:11px;padding:2px 7px;border-radius:99px;background:var(--dim);color:var(--txt)">inaktiv</span>
     </div>
     <div class="card-body" style="display:flex;flex-direction:column;gap:.5rem">
       <div style="font-size:12px;color:var(--mut)">
@@ -521,6 +521,23 @@ function updateStatus(d) {
     if (g) {
       g.value = d.audio_gain ?? 20;
       document.getElementById('gain-val').textContent = '×' + (d.audio_gain ?? 20).toFixed(0);
+    }
+  }
+
+  const hsPill = document.getElementById('hotspot-status');
+  if (hsPill && d.hotspot_on !== undefined) {
+    if (d.hotspot_busy) {
+      hsPill.textContent = 'einrichten…';
+      hsPill.style.background = 'var(--warn)';
+      hsPill.style.color = '#000';
+    } else if (d.hotspot_on) {
+      hsPill.textContent = 'aktiv';
+      hsPill.style.background = 'var(--act)';
+      hsPill.style.color = '#000';
+    } else {
+      hsPill.textContent = 'inaktiv';
+      hsPill.style.background = 'var(--dim)';
+      hsPill.style.color = 'var(--txt)';
     }
   }
 }
