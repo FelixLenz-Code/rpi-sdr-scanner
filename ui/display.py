@@ -558,7 +558,9 @@ class DisplayUI:
         else:
             bt_lbl = "Bluetooth-Setup"
         bank_lbl = f"Bank: B{s['bank']} {s['bank_name']}"
-        if not s.get("hotspot_configured"):
+        if s.get("hotspot_busy"):
+            hs_lbl = "Hotspot: Einrichten …"
+        elif not s.get("hotspot_configured"):
             hs_lbl = "Hotspot einrichten"
         elif s.get("hotspot_on"):
             hs_lbl = "Hotspot: AN  ●"

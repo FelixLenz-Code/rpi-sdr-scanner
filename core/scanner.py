@@ -80,6 +80,7 @@ class Scanner:
         self._calibrator: Optional[Calibrator] = None
         self.scan_all_banks: bool = False  # True → nach Bank-Wrap zur nächsten Bank
         self._hotspot_on: bool   = self._check_hotspot_active()
+        self._hotspot_busy: bool = False  # Setup-Thread läuft gerade
         self.bt = BluetoothManager()
         self.bt.on_disconnect = self._bt_on_disconnect
 
@@ -125,8 +126,12 @@ class Scanner:
     def toggle_hotspot(self):
         if self.debug:
             return
+        if self._hotspot_busy:
+            return
         # Wenn hostapd noch nicht konfiguriert: Setup in Hintergrund-Thread
         if not os.path.exists("/etc/hostapd/hostapd.conf"):
+            self._hotspot_busy = True
+            self.on_state_change()
             threading.Thread(target=self._run_hotspot_setup,
                              daemon=True, name="hotspot-setup").start()
             return
@@ -144,14 +149,18 @@ class Scanner:
         script = "/usr/share/sdr-scanner/hotspot/setup_hotspot.sh"
         log.info("Hotspot-Ersteinrichtung läuft …")
         try:
-            subprocess.run(
+            r = subprocess.run(
                 ["sudo", "bash", script],
-                timeout=120, capture_output=True
+                timeout=120, capture_output=True, text=True
             )
+            if r.returncode != 0:
+                log.warning("Hotspot-Setup Fehler (rc=%d): %s", r.returncode, r.stderr[:200])
             self._hotspot_on = self._check_hotspot_active()
             log.info("Hotspot-Setup abgeschlossen, aktiv=%s", self._hotspot_on)
         except Exception as e:
             log.warning("Hotspot-Setup fehlgeschlagen: %s", e)
+        finally:
+            self._hotspot_busy = False
         self.on_state_change()
 
     def run(self):
@@ -733,6 +742,7 @@ class Scanner:
             "loaded_bank":    self._loaded_bank,
             "bt_connected":   self.bt.is_connected(),
             "bt_name":        self.bt.connected_name() or "",
-            "hotspot_on":     self._hotspot_on,
+            "hotspot_on":         self._hotspot_on,
             "hotspot_configured": os.path.exists("/etc/hostapd/hostapd.conf"),
+            "hotspot_busy":       self._hotspot_busy,
         }
