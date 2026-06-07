@@ -122,12 +122,15 @@ echo 'blacklist dvb_usb_rtl28xxu' | sudo tee /etc/modprobe.d/blacklist-rtl.conf
 
 ### Option A – .deb-Paket (empfohlen)
 
-Das aktuelle Paket von der [Releases-Seite](https://github.com/FelixLenz-Code/rpi-sdr-scanner/releases) herunterladen:
+Direkt auf dem Pi ausführen — lädt automatisch das neueste Release von GitHub:
 
 ```bash
-# .deb auf den Pi übertragen und installieren
-scp sdr-scanner_<version>_arm64.deb pi@<ip>:/home/pi/
-ssh pi@<ip> "sudo dpkg -i /home/pi/sdr-scanner_<version>_arm64.deb && sudo apt-get install -f"
+curl -sL \
+  "$(curl -s https://api.github.com/repos/FelixLenz-Code/rpi-sdr-scanner/releases/latest \
+     | grep -o 'https://[^"]*_arm64\.deb')" \
+  -o /tmp/sdr-scanner.deb \
+&& sudo dpkg -i /tmp/sdr-scanner.deb \
+&& sudo apt-get install -f
 ```
 
 Nach der Installation startet der Scanner automatisch. Web-UI erreichbar unter **http://scanner.local:5000** (Hotspot `SDR-Scanner`, Passwort: `sdrscanner`).
