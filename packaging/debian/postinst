@@ -35,10 +35,10 @@ EOF
         mkdir -p /var/lib/sdr-scanner
         chown pi:pi /var/lib/sdr-scanner
 
-        # ── settings.py für pi beschreibbar machen ─────────────────────────
-        # BT-Adresse, PPM-Kalibrierung etc. werden zur Laufzeit in settings.py
-        # geschrieben – dafür braucht der pi-User Schreibrechte auf die Datei.
-        chown pi:pi /usr/share/sdr-scanner/config/settings.py 2>/dev/null || true
+        # ── config/-Verzeichnis für pi beschreibbar machen ────────────────
+        # BT-Adresse und PPM-Kalibrierung schreiben settings.py + settings.py.bak.
+        # .bak anlegen erfordert Schreibrechte auf das Verzeichnis, nicht nur die Datei.
+        chown -R pi:pi /usr/share/sdr-scanner/config/ 2>/dev/null || true
 
         # ── /usr/bin/sdr-scanner Wrapper ───────────────────────────────────
         ln -sf "${INSTALL_DIR}/start_scanner.sh" /usr/bin/sdr-scanner
