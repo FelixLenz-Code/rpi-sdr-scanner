@@ -348,6 +348,12 @@ class DisplayUI:
         rssi_str = f"{s['rssi']:.0f} dBFS"
         self._text(rssi_str, "small", (98, 210), MUTED, anchor="ml")
 
+        # ── SDR-Dongle-Indikator ──────────────────────────────────────────
+        if s.get("dongle_ok"):
+            self._text("SDR ●", "small", (W - 6, 210), PRIMARY, anchor="mr")
+        else:
+            self._text("SDR ✕", "small", (W - 6, 210), WARN, anchor="mr")
+
 
         # ── Bluetooth-Status ──────────────────────────────────────────────
         BT_COL = (0, 160, 255)
