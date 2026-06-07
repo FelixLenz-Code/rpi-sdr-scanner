@@ -117,11 +117,13 @@ echo 'blacklist dvb_usb_rtl28xxu' | sudo tee /etc/modprobe.d/blacklist-rtl.conf
 Die einfachste Installationsmethode. Lädt das fertige Paket vom neuesten Release herunter und installiert es inkl. aller Abhängigkeiten.
 
 ```bash
-# .deb herunterladen (Beispiel für v1.0.0)
-wget https://github.com/FelixLenz-Code/rpi-sdr-scanner/releases/latest/download/sdr-scanner_1.0.0_arm64.deb
+# Neueste Version automatisch herunterladen
+wget -O sdr-scanner.deb \
+  $(curl -s https://api.github.com/repos/FelixLenz-Code/rpi-sdr-scanner/releases/latest \
+    | grep browser_download_url | grep arm64.deb | cut -d '"' -f 4)
 
 # Installieren
-sudo dpkg -i sdr-scanner_1.0.0_arm64.deb
+sudo dpkg -i sdr-scanner.deb
 
 # Fehlende apt-Abhängigkeiten automatisch nachholen
 sudo apt-get install -f
