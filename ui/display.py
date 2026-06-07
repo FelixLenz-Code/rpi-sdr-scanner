@@ -574,7 +574,7 @@ class DisplayUI:
         else:
             hs_lbl = "Hotspot: AUS ○"
         return [
-            (bank_lbl,               "MEMORY"),
+            (bank_lbl,               "MEMORY_LONG"),
             ("Kalibrierung starten", "CALIBRATE"),
             (scan_lbl,               "__SCAN_ALL__"),
             (sq_lbl,                 "__SQ_PRESET__"),
