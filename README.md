@@ -112,7 +112,24 @@ echo 'blacklist dvb_usb_rtl28xxu' | sudo tee /etc/modprobe.d/blacklist-rtl.conf
 - Raspberry Pi OS (Bookworm oder Bullseye) auf einer SD-Karte
 - SSH-Zugang oder direkter Terminalzugriff auf dem Pi
 
-### Repo klonen und Setup ausführen
+### Option A – .deb-Paket (empfohlen)
+
+Die einfachste Installationsmethode. Lädt das fertige Paket vom neuesten Release herunter und installiert es inkl. aller Abhängigkeiten.
+
+```bash
+# .deb herunterladen (Beispiel für v1.0.0)
+wget https://github.com/FelixLenz-Code/rpi-sdr-scanner/releases/latest/download/sdr-scanner_1.0.0_arm64.deb
+
+# Installieren
+sudo dpkg -i sdr-scanner_1.0.0_arm64.deb
+
+# Fehlende apt-Abhängigkeiten automatisch nachholen
+sudo apt-get install -f
+```
+
+Nach der Installation startet der Scanner automatisch. Web-UI erreichbar unter **http://scanner.local:5000** (Hotspot `SDR-Scanner`, Passwort: `sdrscanner`).
+
+### Option B – Repo klonen und Setup ausführen
 
 ```bash
 git clone https://github.com/FelixLenz-Code/rpi-sdr-scanner.git
