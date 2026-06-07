@@ -31,6 +31,10 @@ EOF
             done
         fi
 
+        # ── pyrtlsdr via pip (apt-Version ist veraltet) ───────────────────────
+        pip3 install --break-system-packages -q pyrtlsdr lgpio 2>/dev/null || \
+            pip3 install -q pyrtlsdr lgpio 2>/dev/null || true
+
         # ── Datenverzeichnis anlegen (bookmarks.db, WorkingDirectory) ────────
         mkdir -p /var/lib/sdr-scanner
         chown pi:pi /var/lib/sdr-scanner

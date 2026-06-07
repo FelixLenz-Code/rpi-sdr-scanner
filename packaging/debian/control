@@ -1,11 +1,11 @@
 Package: sdr-scanner
-Version: 1.1.3
+Version: 1.1.4
 Architecture: arm64
 Maintainer: Felix Lenz <lenzfelix5@gmail.com>
 Description: RPi SDR Tischscanner im 1-DIN Autoradio-Format
  Kompakter Tischscanner auf Basis Raspberry Pi, RTL-SDR-Dongle und
- 3,5"-SPI-Touchscreen. Kanalscan, Memory-Bänke, Bluetooth-Audio und
- Web-UI per WLAN-Hotspot.
+ 3,5"-SPI-Touchscreen. Kanalscan, Memory-Bänke, Bluetooth-Audio,
+ TTS-Kanalnamen-Ansage mit NATO-Phonetik und Web-UI per WLAN-Hotspot.
 Depends: python3 (>= 3.10),
  python3-pygame,
  python3-flask,
@@ -13,14 +13,19 @@ Depends: python3 (>= 3.10),
  python3-scipy,
  python3-gpiozero,
  python3-rpi.gpio,
+ python3-lgpio,
  python3-dbus,
+ python3-pyaudio,
  rtl-sdr,
+ alsa-utils,
  pulseaudio,
+ pulseaudio-utils,
  pulseaudio-module-bluetooth,
  bluez,
  hostapd,
  dnsmasq,
  iptables,
+ kalibrate-rtl,
  espeak-ng,
  libttspico-utils,
  rhvoice,

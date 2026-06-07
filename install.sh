@@ -158,12 +158,23 @@ PACKAGES=(
   python3-gpiozero
   python3-flask
   python3-requests
+  python3-numpy
+  python3-scipy
+  python3-lgpio
+  python3-pyaudio
   # Netz
   hostapd
   dnsmasq
   iptables
   # Kalibrierung
   kalibrate-rtl
+  # TTS – Priorisierung: pico2wave > RHVoice > MBROLA > espeak-ng plain
+  espeak-ng
+  libttspico-utils
+  rhvoice
+  rhvoice-english
+  mbrola
+  mbrola-en1
   # Hilfsmittel
   git
   unzip
@@ -184,9 +195,9 @@ ok "System-Pakete installiert"
 step "Python-Pakete installieren"
 
 PY_PACKAGES=(
-  "gpiozero"
-  "RPi.GPIO"
-  "flask"
+  "pyrtlsdr"   # RTL-SDR direkte Bibliothek (pip-Version neuer als apt)
+  "lgpio"      # Encoder-Hardware-Zugriff
+  "RPi.GPIO"   # GPIO-Fallback
 )
 
 for pkg in "${PY_PACKAGES[@]}"; do
