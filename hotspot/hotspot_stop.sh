@@ -14,4 +14,10 @@ systemctl stop dnsmasq  2>/dev/null || true
 iptables -t nat -D PREROUTING -i "${IFACE}" -p tcp --dport 80 \
     -j REDIRECT --to-port 5000 2>/dev/null || true
 
+# NetworkManager wlan0 zurückgeben
+if command -v nmcli > /dev/null 2>&1; then
+    nmcli dev set "$IFACE" managed yes 2>/dev/null || true
+    $LOG "NetworkManager: wlan0 managed"
+fi
+
 $LOG "Hotspot gestoppt."
