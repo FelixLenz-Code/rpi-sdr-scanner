@@ -513,7 +513,6 @@ class DisplayUI:
             self._touch_menu_open = False
             sc.buttons.inject(ButtonEvent.MENU)
         elif action == "SPEAK":
-            self._touch_menu_open = False
             sc.buttons.inject(ButtonEvent.MEMORY)
         elif action == "SCAN_TOGGLE":
             sc.buttons.inject(ButtonEvent.SCAN_TOGGLE)
