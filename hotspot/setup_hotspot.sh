@@ -40,9 +40,12 @@ ip link show "$IFACE" > /dev/null 2>&1 || error "Interface $IFACE nicht gefunden
 info "Interface $IFACE gefunden."
 
 # ── Pakete installieren ────────────────────────────────────────────────────────
-info "Installiere hostapd und dnsmasq..."
-apt-get update -qq
-apt-get install -y hostapd dnsmasq iptables
+# SKIP_APT=1 überspringt apt (z.B. wenn Pakete bereits via dpkg-Deps installiert)
+if [ "${SKIP_APT:-0}" = "0" ]; then
+    info "Installiere hostapd und dnsmasq..."
+    apt-get update -qq
+    apt-get install -y hostapd dnsmasq iptables
+fi
 
 # Dienste initial stoppen
 systemctl stop hostapd 2>/dev/null || true

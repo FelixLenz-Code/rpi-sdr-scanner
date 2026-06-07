@@ -1,6 +1,8 @@
 # core/scanner.py – Haupt-Controller mit Memory-Bank und Kalibrierungs-Integration
 
+import os
 import queue
+import subprocess
 import time
 import threading
 import logging
@@ -77,6 +79,7 @@ class Scanner:
         self._calib_log: list[str] = []   # letzte Meldungen für Display-Overlay
         self._calibrator: Optional[Calibrator] = None
         self.scan_all_banks: bool = False  # True → nach Bank-Wrap zur nächsten Bank
+        self._hotspot_on: bool   = self._check_hotspot_active()
         self.bt = BluetoothManager()
         self.bt.on_disconnect = self._bt_on_disconnect
 
@@ -106,6 +109,50 @@ class Scanner:
         self.demod.close()
         self.audio.stop()
         self.db.close()
+
+    # ── Hotspot ───────────────────────────────────────────────────────────────
+
+    def _check_hotspot_active(self) -> bool:
+        if self.debug:
+            return False
+        try:
+            r = subprocess.run(["systemctl", "is-active", "sdr_hotspot.service"],
+                               capture_output=True, text=True, timeout=2)
+            return r.stdout.strip() == "active"
+        except Exception:
+            return False
+
+    def toggle_hotspot(self):
+        if self.debug:
+            return
+        # Wenn hostapd noch nicht konfiguriert: Setup in Hintergrund-Thread
+        if not os.path.exists("/etc/hostapd/hostapd.conf"):
+            threading.Thread(target=self._run_hotspot_setup,
+                             daemon=True, name="hotspot-setup").start()
+            return
+        cmd = "stop" if self._hotspot_on else "start"
+        try:
+            subprocess.run(["sudo", "systemctl", cmd, "sdr_hotspot.service"],
+                           timeout=10, capture_output=True)
+            self._hotspot_on = not self._hotspot_on
+            log.info("Hotspot %s", "gestartet" if self._hotspot_on else "gestoppt")
+        except Exception as e:
+            log.warning("Hotspot-Toggle fehlgeschlagen: %s", e)
+        self.on_state_change()
+
+    def _run_hotspot_setup(self):
+        script = "/usr/share/sdr-scanner/hotspot/setup_hotspot.sh"
+        log.info("Hotspot-Ersteinrichtung läuft …")
+        try:
+            subprocess.run(
+                ["sudo", "bash", script],
+                timeout=120, capture_output=True
+            )
+            self._hotspot_on = self._check_hotspot_active()
+            log.info("Hotspot-Setup abgeschlossen, aktiv=%s", self._hotspot_on)
+        except Exception as e:
+            log.warning("Hotspot-Setup fehlgeschlagen: %s", e)
+        self.on_state_change()
 
     def run(self):
         self.start()
@@ -686,4 +733,6 @@ class Scanner:
             "loaded_bank":    self._loaded_bank,
             "bt_connected":   self.bt.is_connected(),
             "bt_name":        self.bt.connected_name() or "",
+            "hotspot_on":     self._hotspot_on,
+            "hotspot_configured": os.path.exists("/etc/hostapd/hostapd.conf"),
         }

@@ -46,9 +46,17 @@ EOF
         # ── fstrim deaktivieren (SD-Karten-Hänger beim Boot) ──────────────
         systemctl mask fstrim.service fstrim.timer 2>/dev/null || true
 
+        # ── sudoers: Hotspot-Toggle ohne Passwort ─────────────────────────
+        cat > /etc/sudoers.d/sdr-hotspot << 'EOF'
+pi ALL=(ALL) NOPASSWD: /usr/bin/systemctl start sdr_hotspot.service, /usr/bin/systemctl stop sdr_hotspot.service, /bin/bash /usr/share/sdr-scanner/hotspot/setup_hotspot.sh
+EOF
+        chmod 440 /etc/sudoers.d/sdr-hotspot
+
         # ── WLAN-Hotspot einrichten ────────────────────────────────────────
+        # SKIP_APT=1: Pakete kommen aus Depends, kein zweites apt nötig
         if ip link show wlan0 >/dev/null 2>&1; then
-            SCANNER_DIR="${INSTALL_DIR}" bash "${INSTALL_DIR}/hotspot/setup_hotspot.sh" || true
+            SKIP_APT=1 SCANNER_DIR="${INSTALL_DIR}" \
+                bash "${INSTALL_DIR}/hotspot/setup_hotspot.sh" || true
         fi
 
         # ── Alte manuell installierte Service-Datei entfernen ─────────────

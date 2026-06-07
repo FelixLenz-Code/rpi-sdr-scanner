@@ -558,12 +558,19 @@ class DisplayUI:
         else:
             bt_lbl = "Bluetooth-Setup"
         bank_lbl = f"Bank: B{s['bank']} {s['bank_name']}"
+        if not s.get("hotspot_configured"):
+            hs_lbl = "Hotspot einrichten"
+        elif s.get("hotspot_on"):
+            hs_lbl = "Hotspot: AN  ●"
+        else:
+            hs_lbl = "Hotspot: AUS ○"
         return [
             (bank_lbl,               "MEMORY"),
             ("Kalibrierung starten", "CALIBRATE"),
             (scan_lbl,               "__SCAN_ALL__"),
             (sq_lbl,                 "__SQ_PRESET__"),
             (bt_lbl,                 "BT_SETUP"),
+            (hs_lbl,                 "__HOTSPOT__"),
             ("Menü schließen",       "__CLOSE__"),
         ]
 
@@ -652,6 +659,10 @@ class DisplayUI:
             self._draw()
             return
 
+        if action == "__HOTSPOT__":
+            self._scanner.toggle_hotspot()
+            self._draw()
+            return
 
         # ButtonEvent-Aktionen: Menü zuerst schließen, dann Event ins IDLE injizieren
         self._scanner.buttons.inject(ButtonEvent.MENU)

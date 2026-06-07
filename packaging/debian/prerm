@@ -7,5 +7,6 @@ case "$1" in
         systemctl disable sdr_scanner 2>/dev/null || true
         systemctl stop sdr_hotspot 2>/dev/null || true
         systemctl disable sdr_hotspot 2>/dev/null || true
+        rm -f /etc/sudoers.d/sdr-hotspot
     ;;
 esac
