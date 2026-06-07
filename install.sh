@@ -33,14 +33,6 @@ for arg in "$@"; do
   esac
 done
 
-# Im firstrun-Modus: alle interaktiven Fragen automatisch beantworten
-if [ "${FIRSTRUN_MODE:-0}" = "1" ]; then
-  OPT_REBOOT=false
-  # Hotspot-Defaults aus Umgebung oder fest
-  HOTSPOT_SSID="${FIRSTRUN_SSID:-SDR-Scanner}"
-  HOTSPOT_PASS="${FIRSTRUN_PASS:-sdrscanner}"
-fi
-
 # ── Farben & Ausgabe ──────────────────────────────────────────────────────────
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
 CYAN='\033[0;36m'; BOLD='\033[1m'; NC='\033[0m'
@@ -82,12 +74,8 @@ echo -e "  Display-Treiber:          $(${OPT_DISPLAY} && echo 'ja' || echo 'nein
 echo -e "  WLAN-Hotspot:             $(${OPT_HOTSPOT} && echo 'ja' || echo 'nein')"
 echo -e "  systemd-Service:          $(${OPT_SERVICE} && echo 'ja' || echo 'nein')"
 echo ""
-if [ "${FIRSTRUN_MODE:-0}" = "1" ]; then
-  echo "  [firstrun] Automatisch bestätigt."
-else
-  read -rp "  Fortfahren? [j/N] " CONFIRM
-  [[ "$CONFIRM" =~ ^[jJyY] ]] || { echo "Abgebrochen."; exit 0; }
-fi
+read -rp "  Fortfahren? [j/N] " CONFIRM
+[[ "$CONFIRM" =~ ^[jJyY] ]] || { echo "Abgebrochen."; exit 0; }
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  1. VORAUSSETZUNGEN PRÜFEN
@@ -404,22 +392,18 @@ fi
 if $OPT_HOTSPOT; then
   step "WLAN-Hotspot konfigurieren"
 
-  # SSID / Passwort – interaktiv oder automatisch
-  if [ "${FIRSTRUN_MODE:-0}" = "1" ]; then
-    info "Firstrun-Modus: SSID='${HOTSPOT_SSID}', Passwort='${HOTSPOT_PASS}'"
-  else
-    echo ""
-    echo -e "  ${BOLD}Hotspot-Konfiguration${NC}"
-    read -rp "  WLAN-Name (SSID) [${HOTSPOT_SSID}]: " INPUT_SSID
-    HOTSPOT_SSID="${INPUT_SSID:-$HOTSPOT_SSID}"
+  # SSID / Passwort – interaktiv
+  echo ""
+  echo -e "  ${BOLD}Hotspot-Konfiguration${NC}"
+  read -rp "  WLAN-Name (SSID) [${HOTSPOT_SSID}]: " INPUT_SSID
+  HOTSPOT_SSID="${INPUT_SSID:-$HOTSPOT_SSID}"
 
-    while true; do
-      read -rsp "  Passwort (min. 8 Zeichen) [${HOTSPOT_PASS}]: " INPUT_PASS; echo
-      INPUT_PASS="${INPUT_PASS:-$HOTSPOT_PASS}"
-      [ ${#INPUT_PASS} -ge 8 ] && { HOTSPOT_PASS="$INPUT_PASS"; break; }
-      warn "Passwort zu kurz – mindestens 8 Zeichen"
-    done
-  fi
+  while true; do
+    read -rsp "  Passwort (min. 8 Zeichen) [${HOTSPOT_PASS}]: " INPUT_PASS; echo
+    INPUT_PASS="${INPUT_PASS:-$HOTSPOT_PASS}"
+    [ ${#INPUT_PASS} -ge 8 ] && { HOTSPOT_PASS="$INPUT_PASS"; break; }
+    warn "Passwort zu kurz – mindestens 8 Zeichen"
+  done
 
   info "SSID: $HOTSPOT_SSID  |  IP: $HOTSPOT_IP"
 

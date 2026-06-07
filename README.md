@@ -154,16 +154,6 @@ bash install.sh --no-hotspot     # Ohne Hotspot-Einrichtung
 bash install.sh --no-service     # Ohne systemd-Service
 ```
 
-### Option C – SD-Karten-Autoinstall (firstrun.sh)
-
-`firstrun.sh` und `sdr_scanner.zip` auf die Boot-Partition der SD-Karte kopieren, dann in `cmdline.txt` ergänzen:
-
-```
-systemd.run=/boot/firmware/firstrun.sh systemd.run_success_action=reboot
-```
-
-Der Pi installiert beim ersten Hochfahren alles automatisch und startet neu. `firstrun.sh` und `sdr_scanner.zip` müssen dazu auf der Boot-Partition liegen.
-
 ---
 
 ## Starten

@@ -1,6 +1,6 @@
 #!/bin/bash
 # fix_fstrim.sh – fstrim auf dem Pi deaktivieren
-# Ausführen wenn der Pi per SSH erreichbar ist (vor firstrun oder danach)
+# Ausführen wenn der Pi per SSH erreichbar ist
 #
 # Lokal ausführen:    sudo bash fix_fstrim.sh
 # Per SSH ausführen:  ssh pi@192.168.4.1 'sudo bash /home/pi/sdr_scanner/hotspot/fix_fstrim.sh'
