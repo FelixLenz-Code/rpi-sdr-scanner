@@ -26,9 +26,6 @@ Depends: python3 (>= 3.10),
  dnsmasq,
  iptables,
  kalibrate-rtl,
- espeak-ng,
  libttspico-utils,
  rhvoice,
- rhvoice-english,
- mbrola,
- mbrola-en1
+ rhvoice-english

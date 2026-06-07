@@ -189,16 +189,14 @@ Ein kurzer MEM-Druck liest den Namen des aktuellen Kanals vor. **Amateurfunk-Ruf
 
 > `DB0VA` → *Delta Bravo Zero Victor Alpha*
 
-**TTS-Priorisierung** (erstes verfügbares Backend wird genutzt):
+**TTS-Backends** (erstes verfügbares wird genutzt):
 
 | Priorität | Backend | Qualität | Latenz |
 |-----------|---------|----------|--------|
 | 1 | **pico2wave** (SVOX Pico, `libttspico-utils`) | sehr gut | ~1,4 s |
 | 2 | **RHVoice** (`rhvoice` + `rhvoice-english`) | gut | ~0,5 s |
-| 3 | **MBROLA en1** (`espeak-ng` + `mbrola-en1`) | mittel | ~2,5 s |
-| 4 | **espeak-ng** plain | ausreichend | ~0,3 s |
 
-`install.sh` installiert alle Backends automatisch.
+`install.sh` installiert beide automatisch.
 
 ---
 

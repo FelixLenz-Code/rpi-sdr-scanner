@@ -168,13 +168,10 @@ PACKAGES=(
   iptables
   # Kalibrierung
   kalibrate-rtl
-  # TTS – Priorisierung: pico2wave > RHVoice > MBROLA > espeak-ng plain
-  espeak-ng
+  # TTS – pico2wave (primär) + RHVoice (Fallback)
   libttspico-utils
   rhvoice
   rhvoice-english
-  mbrola
-  mbrola-en1
   # Hilfsmittel
   git
   unzip
