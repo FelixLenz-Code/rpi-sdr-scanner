@@ -101,7 +101,7 @@ DISPLAY_FPS    = 15           # Framerate – 15 reicht für ein Scanner-UI
 # Kalibrierung einmalig mit: sudo ts_calibrate
 TOUCH_ENABLED  = True
 TOUCH_SWAP_XY  = False   # True wenn X/Y vertauscht (Hochformat → Querformat)
-TOUCH_INVERT_X = False   # True bei gespiegelter X-Achse
+TOUCH_INVERT_X = True    # X-Achse ist beim MHS/ILI9486 hardwareseitig gespiegelt
 TOUCH_INVERT_Y = False   # True bei gespiegelter Y-Achse
 
 # Farben (R, G, B)
