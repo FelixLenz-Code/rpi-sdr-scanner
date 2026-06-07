@@ -424,7 +424,7 @@ class DisplayUI:
         ("Monitor",  None,                 "MONITOR",      lambda s: ACTIVE),
         # Zeile 3
         ("SQ −",     lambda s: f"{s['sq_level']} dB", "SQ_DOWN", lambda s: DIM),
-        ("BT",       lambda s: (s.get("bt_name") or "")[:10], "BT", lambda s: (0, 130, 220)),
+        ("Vorlesen", None,                                    "SPEAK", lambda s: (80, 60, 130)),
         ("SQ +",     lambda s: f"{s['sq_level']} dB", "SQ_UP",   lambda s: DIM),
         ("X",        None,                 "CLOSE",        lambda s: (80, 20, 20)),
     ]
@@ -512,9 +512,9 @@ class DisplayUI:
         elif action == "MENU":
             self._touch_menu_open = False
             sc.buttons.inject(ButtonEvent.MENU)
-        elif action == "BT":
+        elif action == "SPEAK":
             self._touch_menu_open = False
-            sc.buttons.inject(ButtonEvent.BT_SETUP)
+            sc.buttons.inject(ButtonEvent.MEMORY)
         elif action == "SCAN_TOGGLE":
             sc.buttons.inject(ButtonEvent.SCAN_TOGGLE)
         elif action == "KANAL_UP":
