@@ -42,6 +42,13 @@ EOF
             SCANNER_DIR="${INSTALL_DIR}" bash "${INSTALL_DIR}/hotspot/setup_hotspot.sh" || true
         fi
 
+        # ── Alte manuell installierte Service-Datei entfernen ─────────────
+        # /etc/systemd/system/ überschreibt /lib/systemd/system/ – alte Datei
+        # vom vorherigen install.sh-Setup würde den neuen Pfad blockieren.
+        if [ -f /etc/systemd/system/sdr_scanner.service ]; then
+            rm -f /etc/systemd/system/sdr_scanner.service
+        fi
+
         # ── systemd: Scanner-Service aktivieren ───────────────────────────
         systemctl daemon-reload
         systemctl enable sdr_scanner 2>/dev/null || true
