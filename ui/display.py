@@ -348,25 +348,26 @@ class DisplayUI:
         rssi_str = f"{s['rssi']:.0f} dBFS"
         self._text(rssi_str, "small", (98, 210), MUTED, anchor="ml")
 
-        # ── SDR-Dongle-Indikator ──────────────────────────────────────────
-        if s.get("dongle_ok"):
-            self._text("SDR ●", "small", (W - 6, 210), PRIMARY, anchor="mr")
-        else:
-            self._text("SDR ✕", "small", (W - 6, 210), WARN, anchor="mr")
 
 
-        # ── Bluetooth-Status ──────────────────────────────────────────────
+        # ── Bluetooth-Status + SDR-Indikator (linke Spalte) ──────────────
         BT_COL = (0, 160, 255)
         cx, cy = 18, 244
         if s.get("bt_connected"):
-            # Gefüllter Kreis + Gerätenamen
             pg.draw.circle(scr, BT_COL, (cx, cy), 6)
             name = (s.get("bt_name") or "BT")[:14]
             self._text(name, "small", (cx + 11, cy), BT_COL, anchor="ml")
         elif cfg.BT_DEVICE_ADDRESS:
-            # Leerer Kreis = bekanntes Gerät, nicht verbunden
             pg.draw.circle(scr, DIM, (cx, cy), 6, 1)
             self._text("BT", "small", (cx + 11, cy), DIM, anchor="ml")
+
+        # SDR-Dongle-Status direkt unter BT
+        if s.get("dongle_ok"):
+            pg.draw.circle(scr, PRIMARY, (cx, cy + 18), 6)
+            self._text("SDR", "small", (cx + 11, cy + 18), PRIMARY, anchor="ml")
+        else:
+            pg.draw.circle(scr, WARN, (cx, cy + 18), 6, 1)
+            self._text("SDR", "small", (cx + 11, cy + 18), WARN, anchor="ml")
 
         # ── Aktiv-Rahmen wenn Signal ──────────────────────────────────────
         if s["state"] == "ACTIVE":
