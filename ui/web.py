@@ -964,19 +964,9 @@ document.getElementById('wifi-modal-bg').addEventListener('click', e => {
   if (e.target.id === 'wifi-modal-bg') closeWifiModal();
 });
 
-// Hotspot-Status beim Start abrufen
+// SSID beim Start abrufen (Pill-Status kommt via SSE)
 fetch('/hotspot/info').then(r => r.json()).then(d => {
   document.getElementById('hotspot-ssid').textContent = d.ssid || '–';
-  const pill = document.getElementById('hotspot-status');
-  if (d.active) {
-    pill.textContent = 'aktiv';
-    pill.style.background = 'var(--act)';
-    pill.style.color = '#000';
-  } else {
-    pill.textContent = 'inaktiv';
-    pill.style.background = 'var(--dim)';
-    pill.style.color = 'var(--txt)';
-  }
 }).catch(() => {});
 
 document.getElementById('save-modal-bg').addEventListener('click', e => {
@@ -1362,14 +1352,7 @@ class WebUI:
                     for line in f:
                         if line.startswith("ssid="):
                             ssid = line.split("=", 1)[1].strip()
-            try:
-                result = subprocess.run(
-                    ["systemctl", "is-active", "hostapd"],
-                    capture_output=True, text=True, timeout=3
-                )
-                active = result.stdout.strip() == "active"
-            except Exception:
-                pass
+            active = self._scanner._hotspot_on
             return jsonify({"ssid": ssid, "active": active})
 
         @app.route("/hotspot/change", methods=["POST"])
