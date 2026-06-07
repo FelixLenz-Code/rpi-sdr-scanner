@@ -103,9 +103,8 @@ class Scanner:
         self._calib_log: list[str] = []   # letzte Meldungen für Display-Overlay
         self._calibrator: Optional[Calibrator] = None
         self.scan_all_banks: bool = False  # True → nach Bank-Wrap zur nächsten Bank
-        self._hotspot_on: bool          = False  # immer deaktiviert beim Start
-        self._hotspot_busy: bool        = False
-        self._hotspot_next_check: float = time.monotonic() + 5.0
+        self._hotspot_on: bool   = False  # immer deaktiviert beim Start
+        self._hotspot_busy: bool = False
         self.bt = BluetoothManager()
         self.bt.on_disconnect = self._bt_on_disconnect
 
@@ -149,10 +148,6 @@ class Scanner:
             return False
 
     def _refresh_hotspot_on(self) -> bool:
-        now = time.monotonic()
-        if now >= self._hotspot_next_check:
-            self._hotspot_on = self._check_hotspot_active()
-            self._hotspot_next_check = now + 10.0
         return self._hotspot_on
 
     def toggle_hotspot(self):
