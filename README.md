@@ -18,10 +18,11 @@ Kompakter Tischscanner auf Basis eines Raspberry Pi, eines RTL-SDR-Dongles und e
 
 - **Kanalscanner** — scannt eine konfigurierbare Kanalliste, bleibt bei aktivem Signal stehen
 - **Memory-Bänke** — 10 benannte Bänke, persistent in SQLite
+- **Boot-Splash** — animierter Startbildschirm auf dem SPI-Display während der Scanner lädt (`sdr_splash.service`)
 - **Demodulationsmodi** — NFM, FM, WFM, AM (direkt via pyrtlsdr, schneller Kanalwechsel ~10 ms)
 - **Squelch-Regelung** — einstellbare Schwelle mit Hysterese, Signal-Balkenanzeige und Schnell-Presets
 - **Monitor-Taste** — Squelch solange gedrückt halten zwangsweise öffnen (Mithören ohne Signal)
-- **Kanalnamen-Ansage** — kurzer MEM-Druck liest den aktuellen Kanalnamen vor (pico2wave / RHVoice / MBROLA)
+- **Kanalnamen-Ansage** — kurzer MEM-Druck liest den aktuellen Kanalnamen vor (pico2wave / RHVoice / MBROLA / espeak-ng)
 - **Amateurfunk-Rufzeichen** — Rufzeichen (z. B. DB0VA) werden automatisch erkannt und im NATO-Phonetik-Alphabet vorgelesen (*Delta Bravo Zero Victor Alpha*)
 - **Bluetooth-Audio** — A2DP-Lautsprecher koppeln, verbinden und automatisch wiederherstellen; integrierter Wizard im Display-Menü
 - **SDR-Dongle-Indicator** — Display zeigt Verbindungsstatus des RTL-SDR-Dongles; bei Trennung automatischer Reconnect mit Jingle-Ton
@@ -45,7 +46,10 @@ Kompakter Tischscanner auf Basis eines Raspberry Pi, eines RTL-SDR-Dongles und e
 ```
 sdr_scanner/
 ├── main.py                  # Einstiegspunkt, CLI-Argumente
+├── splash.py                # Boot-Splash für SPI-Display (sdr_splash.service)
 ├── start_scanner.sh         # Startscript für systemd (SDL/PA/BT-Umgebung)
+├── sdr_scanner.service      # systemd-Unit für den Scanner
+├── sdr_splash.service       # systemd-Unit für den Boot-Splash
 ├── config/
 │   └── settings.py          # Alle Konfigurationswerte
 ├── core/
@@ -63,6 +67,7 @@ sdr_scanner/
 │   ├── display.py           # pygame Framebuffer-UI + Overlays + BT-Wizard
 │   └── web.py               # Flask + SSE, 21 REST-Endpunkte
 ├── hotspot/
+│   ├── setup_hotspot.sh     # Hotspot einrichten (von postinst und install.sh gerufen)
 │   ├── hotspot_start.sh     # Von systemd beim Boot aufgerufen
 │   ├── hotspot_stop.sh
 │   ├── change_wifi.sh       # SSID/Passwort per CLI ändern
@@ -115,7 +120,19 @@ echo 'blacklist dvb_usb_rtl28xxu' | sudo tee /etc/modprobe.d/blacklist-rtl.conf
 - Raspberry Pi OS Lite 64-bit (Bookworm) auf einer SD-Karte
 - SSH-Zugang oder direkter Terminalzugriff auf dem Pi
 
-### Option A – ZIP + install.sh (empfohlen)
+### Option A – .deb-Paket (empfohlen)
+
+Das aktuelle Paket von der [Releases-Seite](https://github.com/FelixLenz-Code/rpi-sdr-scanner/releases) herunterladen:
+
+```bash
+# .deb auf den Pi übertragen und installieren
+scp sdr-scanner_<version>_arm64.deb pi@<ip>:/home/pi/
+ssh pi@<ip> "sudo dpkg -i /home/pi/sdr-scanner_<version>_arm64.deb && sudo apt-get install -f"
+```
+
+Nach der Installation startet der Scanner automatisch. Web-UI erreichbar unter **http://scanner.local:5000** (Hotspot `SDR-Scanner`, Passwort: `sdrscanner`).
+
+### Option B – ZIP + install.sh
 
 ```bash
 # ZIP auf den Pi übertragen
@@ -134,9 +151,7 @@ bash install.sh --no-hotspot     # Ohne Hotspot-Einrichtung
 bash install.sh --no-service     # Ohne systemd-Service
 ```
 
-Nach der Installation startet der Scanner automatisch. Web-UI erreichbar unter **http://scanner.local:5000** (Hotspot `SDR-Scanner`, Passwort: `sdrscanner`).
-
-### Option B – SD-Karten-Autoinstall (firstrun.sh)
+### Option C – SD-Karten-Autoinstall (firstrun.sh)
 
 `firstrun.sh` und `sdr_scanner.zip` auf die Boot-Partition der SD-Karte kopieren, dann in `cmdline.txt` ergänzen:
 
@@ -144,7 +159,7 @@ Nach der Installation startet der Scanner automatisch. Web-UI erreichbar unter *
 systemd.run=/boot/firmware/firstrun.sh systemd.run_success_action=reboot
 ```
 
-Der Pi installiert beim ersten Hochfahren alles automatisch und startet neu.
+Der Pi installiert beim ersten Hochfahren alles automatisch und startet neu. `firstrun.sh` und `sdr_scanner.zip` müssen dazu auf der Boot-Partition liegen.
 
 ---
 
@@ -195,8 +210,10 @@ Ein kurzer MEM-Druck liest den Namen des aktuellen Kanals vor. **Amateurfunk-Ruf
 |-----------|---------|----------|--------|
 | 1 | **pico2wave** (SVOX Pico, `libttspico-utils`) | sehr gut | ~1,4 s |
 | 2 | **RHVoice** (`rhvoice` + `rhvoice-english`) | gut | ~0,5 s |
+| 3 | **MBROLA** (via `espeak-ng -v mb-en1`) | mittel | ~0,5 s |
+| 4 | **espeak-ng / espeak** | einfach | ~0,3 s |
 
-`install.sh` installiert beide automatisch.
+`install.sh` und `postinst` installieren pico2wave und RHVoice automatisch. MBROLA und espeak-ng dienen als automatischer Fallback falls erstere fehlen.
 
 ---
 
@@ -246,7 +263,7 @@ Wichtige Einstellungen:
 ```python
 RTL_DEVICE_INDEX   = 0        # SDR-Dongle-Index
 RTL_PPM_CORRECTION = 0        # Nach Kalibrierung setzen, z.B. -7
-RTL_GAIN           = "auto"
+RTL_GAIN           = "300"   # Zehntel-dB: 300 = 30 dB; "auto" führt zu hohem Rauschen
 SCAN_DWELL_TIME    = 0.15     # Sekunden pro Kanal beim Scan
 SQUELCH_DEFAULT    = -25      # dBFS-Startwert
 ```
@@ -303,6 +320,12 @@ sudo bash hotspot/fix_fstrim.sh
 **`kalibrate-rtl` nicht gefunden** — das Paket heißt je nach OS-Version `kalibrate-rtl` oder `kalibrate`. `install.sh` probiert beide.
 
 **Display erscheint nicht als `/dev/fb1`** — ohne HDMI-Monitor könnte das SPI-Display als `/dev/fb0` erscheinen. `install.sh` setzt `hdmi_force_hotplug=1` um das zu verhindern. `start_scanner.sh` erkennt das richtige fb-Device automatisch anhand des Treiber-Namens.
+
+**Kernel-Boot-Text überlagert den Boot-Splash** — der Kernel schreibt seine Konsole standardmäßig auf das erste verfügbare Framebuffer-Device. `install.sh` und `postinst` setzen deshalb automatisch `fbcon=map:0 quiet` in `cmdline.txt`, damit die Konsole auf fb0 (HDMI) bleibt und fb1 (SPI) dem Splash exklusiv gehört. Manuell prüfen:
+```bash
+grep fbcon /boot/firmware/cmdline.txt
+# Soll enthalten: fbcon=map:0 quiet
+```
 
 **Hotspot nicht sichtbar** — auf Pi OS Bookworm blockiert NetworkManager WLAN per RF-Kill. `hotspot_start.sh` führt automatisch `rfkill unblock wifi` und `nmcli dev set wlan0 managed no` aus.
 

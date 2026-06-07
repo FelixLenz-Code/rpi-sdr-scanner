@@ -2,7 +2,7 @@ Package: sdr-scanner
 Version: 1.1.4
 Architecture: arm64
 Maintainer: Felix Lenz <lenzfelix5@gmail.com>
-Description: RPi SDR Tischscanner im 1-DIN Autoradio-Format
+Description: RPi SDR Tischscanner
  Kompakter Tischscanner auf Basis Raspberry Pi, RTL-SDR-Dongle und
  3,5"-SPI-Touchscreen. Kanalscan, Memory-Bänke, Bluetooth-Audio,
  TTS-Kanalnamen-Ansage mit NATO-Phonetik und Web-UI per WLAN-Hotspot.
