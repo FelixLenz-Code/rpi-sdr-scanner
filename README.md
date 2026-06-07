@@ -48,9 +48,9 @@ Kompakter Tischscanner auf Basis eines Raspberry Pi, eines RTL-SDR-Dongles und e
 |:----:|:------------:|
 | ![Menü](docs/screenshots/menu.png) | ![Bank Select](docs/screenshots/bank_select.png) |
 
-| Empfang mit Bluetooth-Lautsprecher |
-|:----------------------------------:|
-| ![Active BT](docs/screenshots/active_bt_v2.png) |
+| Empfang mit Bluetooth-Lautsprecher | Bluetooth-Geräteauswahl |
+|:----------------------------------:|:-----------------------:|
+| ![Active BT](docs/screenshots/active_bt_v2.png) | ![BT Setup](docs/screenshots/bt_setup.png) |
 
 ![Web-UI – Bank 1: FM Repeater](docs/screenshots/webui_bank1_fm_repeater.png)
 *Web-Oberfläche (erreichbar über WLAN-Hotspot)*

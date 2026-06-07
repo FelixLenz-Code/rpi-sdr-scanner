@@ -81,6 +81,17 @@ def _base_status(**overrides):
     return s
 
 
+class MockBTDevice:
+    def __init__(self, name, address, connected=False):
+        self._name   = name
+        self.address = address
+        self.connected  = connected
+        self.has_name   = bool(name)
+
+    def display_name(self, maxlen=20):
+        return self._name[:maxlen] if self._name else self.address
+
+
 class MockScanner:
     def __init__(self, overrides=None):
         self._overrides = overrides or {}
@@ -170,6 +181,19 @@ ui = make_ui(MockScanner({
     "bt_name":     "JBL Flip 6",
 }))
 render(ui, pg, "active_bt_v2.png")
+
+# 8. BT-Setup – Geräteliste (PAIRED-Phase)
+# _bt_wizard_active=True verhindert dass _draw() einen Hintergrundthread startet
+ui = make_ui(MockScanner({"state": "BT_SETUP"}), {
+    "_bt_phase": "PAIRED",
+    "_bt_paired_devices": [
+        MockBTDevice("JBL Flip 6",      "00:1B:66:AA:BB:CC", connected=True),
+        MockBTDevice("Bose SoundLink",  "A4:C3:F0:11:22:33", connected=False),
+    ],
+    "_bt_paired_cursor": 0,
+    "_bt_wizard_active": True,
+})
+render(ui, pg, "bt_setup.png")
 
 pg.quit()
 print("Fertig.")
