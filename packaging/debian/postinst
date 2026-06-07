@@ -1,0 +1,51 @@
+#!/bin/bash
+set -e
+
+INSTALL_DIR="/usr/share/sdr-scanner"
+APP_USER="pi"
+
+case "$1" in
+    configure)
+
+        # ── RTL-SDR: DVB-Treiber deaktivieren ──────────────────────────────
+        if [ ! -f /etc/modprobe.d/blacklist-rtl.conf ]; then
+            echo 'blacklist dvb_usb_rtl28xxu' > /etc/modprobe.d/blacklist-rtl.conf
+            echo 'blacklist rtl2832' >> /etc/modprobe.d/blacklist-rtl.conf
+            echo 'blacklist rtl2830' >> /etc/modprobe.d/blacklist-rtl.conf
+        fi
+
+        # ── RTL-SDR udev-Regeln ────────────────────────────────────────────
+        if [ ! -f /etc/udev/rules.d/20-rtlsdr.rules ]; then
+            cat > /etc/udev/rules.d/20-rtlsdr.rules << 'EOF'
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0bda", ATTRS{idProduct}=="2832", GROUP="plugdev", MODE="0666"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0bda", ATTRS{idProduct}=="2838", GROUP="plugdev", MODE="0666"
+EOF
+            udevadm control --reload-rules 2>/dev/null || true
+        fi
+
+        # ── Gruppen-Mitgliedschaft ─────────────────────────────────────────
+        if id "$APP_USER" >/dev/null 2>&1; then
+            for GRP in plugdev gpio audio bluetooth dialout; do
+                getent group "$GRP" >/dev/null 2>&1 && \
+                    usermod -aG "$GRP" "$APP_USER" 2>/dev/null || true
+            done
+        fi
+
+        # ── /usr/bin/sdr-scanner Wrapper ───────────────────────────────────
+        ln -sf "${INSTALL_DIR}/start_scanner.sh" /usr/bin/sdr-scanner
+
+        # ── fstrim deaktivieren (SD-Karten-Hänger beim Boot) ──────────────
+        systemctl mask fstrim.service fstrim.timer 2>/dev/null || true
+
+        # ── WLAN-Hotspot einrichten ────────────────────────────────────────
+        if ip link show wlan0 >/dev/null 2>&1; then
+            SCANNER_DIR="${INSTALL_DIR}" bash "${INSTALL_DIR}/hotspot/setup_hotspot.sh" || true
+        fi
+
+        # ── systemd: Scanner-Service aktivieren ───────────────────────────
+        systemctl daemon-reload
+        systemctl enable sdr_scanner 2>/dev/null || true
+        systemctl start sdr_scanner 2>/dev/null || true
+
+    ;;
+esac

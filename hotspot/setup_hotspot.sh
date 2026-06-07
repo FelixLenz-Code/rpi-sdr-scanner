@@ -24,7 +24,7 @@ DHCP_START="192.168.4.10"   # Erster DHCP-Client
 DHCP_END="192.168.4.50"     # Letzter DHCP-Client
 IFACE="wlan0"               # WLAN-Interface (Zero 2 W hat nur wlan0)
 WEB_PORT=5000               # Port der Flask Web-UI
-SCANNER_DIR="/home/pi/sdr_scanner"
+SCANNER_DIR="${SCANNER_DIR:-/home/pi/sdr_scanner}"
 
 # ── Farben für Ausgabe ─────────────────────────────────────────────────────────
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'

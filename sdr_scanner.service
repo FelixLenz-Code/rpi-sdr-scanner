@@ -5,9 +5,9 @@ After=network.target sound.target
 [Service]
 Type=simple
 User=pi
-WorkingDirectory=/home/pi/sdr_scanner
+WorkingDirectory=/usr/share/sdr-scanner
 ExecStartPre=/bin/bash -c 'for i in $(seq 1 30); do ls /dev/fb* >/dev/null 2>&1 && exit 0; sleep 0.5; done; exit 1'
-ExecStart=/bin/bash /home/pi/sdr_scanner/start_scanner.sh
+ExecStart=/bin/bash /usr/share/sdr-scanner/start_scanner.sh
 Restart=on-failure
 RestartSec=5
 StandardOutput=journal

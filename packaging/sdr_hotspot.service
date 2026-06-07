@@ -1,0 +1,13 @@
+[Unit]
+Description=SDR Scanner WLAN Hotspot
+After=network.target
+Before=sdr_scanner.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/bash /usr/share/sdr-scanner/hotspot/hotspot_start.sh
+ExecStop=/bin/bash /usr/share/sdr-scanner/hotspot/hotspot_stop.sh
+
+[Install]
+WantedBy=multi-user.target
