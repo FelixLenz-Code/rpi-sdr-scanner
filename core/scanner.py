@@ -145,6 +145,31 @@ class Scanner:
             log.warning("Hotspot-Toggle fehlgeschlagen: %s", e)
         self.on_state_change()
 
+    def _speak_channel(self):
+        ch = self.freq.current
+        if not ch or self.debug:
+            return
+        text = ch.name
+        def _run():
+            uid = os.getuid()
+            env = {**os.environ,
+                   "XDG_RUNTIME_DIR":   f"/run/user/{uid}",
+                   "PULSE_RUNTIME_PATH": f"/run/user/{uid}/pulse"}
+            for exe in ("espeak-ng", "espeak"):
+                try:
+                    subprocess.run(
+                        [exe, "-v", "de", "-s", "130", "-a", "150", "--", text],
+                        timeout=6, capture_output=True, env=env,
+                    )
+                    return
+                except FileNotFoundError:
+                    continue
+                except Exception as e:
+                    log.warning("TTS Fehler: %s", e)
+                    return
+            log.warning("TTS: espeak-ng/espeak nicht gefunden")
+        threading.Thread(target=_run, daemon=True, name="tts").start()
+
     def _run_hotspot_setup(self):
         script = "/usr/share/sdr-scanner/hotspot/setup_hotspot.sh"
         log.info("Hotspot-Ersteinrichtung läuft …")
@@ -367,7 +392,7 @@ class Scanner:
             self._tune_current()
 
         elif t == ButtonEvent.MEMORY:
-            self.state = ScannerState.BANK_SELECT
+            self._speak_channel()
 
         elif t == ButtonEvent.MEMORY_LONG:
             self._save_to_bank()
